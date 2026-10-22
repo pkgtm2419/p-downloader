@@ -4,6 +4,7 @@ Prompts user to configure Windows startup, background system tray operation,
 and registers browser integration for Chrome, Edge, Brave, and Firefox.
 """
 import os
+import sys
 import winreg
 from pathlib import Path
 from PyQt6.QtWidgets import (
