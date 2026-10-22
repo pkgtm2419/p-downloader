@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "P-Downloader Integration Module",
+  "version": "1.0.0",
+  "description": "Intercepts downloads and routes them directly to P-Downloader for maximum multi-threaded acceleration.",
+  "permissions": [
+    "downloads",
+    "contextMenus",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "P-Downloader Active"
+  }
+}

@@ -1,0 +1,159 @@
+# ==============================================================================
+# Security & Sensitive Data (Credentials, Keys, Secrets, Environment Files)
+# ==============================================================================
+# Environment variables and local configs containing secrets
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+
+# Private keys, certificates, and encryption keystores
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.p12
+*.crt
+*.cer
+*.der
+*.kdbx
+
+# Authentication tokens and cloud / service credentials
+*credentials*.json
+*client_secret*.json
+token.json
+tokens.json
+auth.json
+secrets.json
+secrets.yaml
+secrets.yml
+.aws/
+.azure/
+.gcloud/
+id_rsa
+id_ed25519
+id_ecdsa
+
+# ==============================================================================
+# Application-Specific Data & Download Payloads (P-Downloader)
+# ==============================================================================
+# SQLite database files and write-ahead logs (contain download history & user data)
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+downloads.db
+
+# In-progress download segments and state metadata
+*.pdownload
+*.part
+*.crdownload
+*.download
+
+# Local application data directory and generated native host files
+.pdownloader/
+pdownloader_host.bat
+com.pdownloader.host.json
+
+# Local downloads and temporary test artifacts
+downloads/
+Downloads/
+tests/*.zip
+tests/*.tar*
+tests/*.iso
+tests/*.tmp
+tests/*.bin
+
+# ==============================================================================
+# Python Bytecode, Caches & Environments
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==============================================================================
+# Build Artifacts, Packaging & Binaries
+# ==============================================================================
+# PyInstaller & build directories
+build/
+dist/
+*.manifest
+*.pyz
+
+# Inno Setup output
+Output/
+_isxdl.dll
+
+# Standalone binary executables and libraries (except project logo/icons)
+*.exe
+*.msi
+*.dll
+
+# Python distribution archives
+*.egg-info/
+.eggs/
+*.egg
+
+# Browser extension packages and signing keys
+*.crx
+*.xpi
+
+# ==============================================================================
+# Testing, Code Quality & Coverage
+# ==============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+
+# ==============================================================================
+# Logs & Crash Dumps
+# ==============================================================================
+*.log
+logs/
+# Crash dumps
+*.dmp
+*.dump
+core.[0-9]*
+/core.[0-9]*
+
+# ==============================================================================
+# Operating System & IDE Specific Files
+# ==============================================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors & IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
