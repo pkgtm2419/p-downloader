@@ -1,14 +1,19 @@
 """
 High-performance multi-connection segmented download worker.
-Supports dynamic chunking, pause/resume, and direct offset writing.
+Supports dynamic chunking, multi-network interface bonding (Plexo),
+expired URL refresh/recovery (IDM), pause/resume, and direct offset writing.
 """
 import os
 import json
 import time
 import requests
 import threading
-from typing import Callable, List, Optional, Dict, Any
+from typing import Callable, List, Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, unquote
+
+from .network_binder import NetworkManager, NetworkInterface
+from .speed_limiter import SpeedLimiter
+from .credentials_manager import CredentialsManager
 
 class Segment:
     def __init__(self, index: int, start: int, end: int, downloaded: int = 0):
@@ -17,6 +22,7 @@ class Segment:
         self.end = end  # inclusive
         self.downloaded = downloaded
         self.completed = False
+        self.assigned_adapter: Optional[str] = None
 
     @property
     def total_size(self) -> int:
@@ -34,13 +40,15 @@ class Segment:
             "start": self.start,
             "end": self.end,
             "downloaded": self.downloaded,
-            "completed": self.completed
+            "completed": self.completed,
+            "assigned_adapter": self.assigned_adapter
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Segment':
         seg = cls(data["index"], data["start"], data["end"], data.get("downloaded", 0))
         seg.completed = data.get("completed", False)
+        seg.assigned_adapter = data.get("assigned_adapter", None)
         return seg
 
 def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
@@ -48,12 +56,18 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "*/*"
     }
+    # Auto-inject site authentication headers if stored
+    auth_headers = CredentialsManager().get_auth_headers_for_url(url)
+    if auth_headers:
+        req_headers.update(auth_headers)
+
     if headers:
         req_headers.update(headers)
 
     filename = "download"
     total_bytes = 0
     supports_range = False
+    final_url = url
 
     try:
         # Try HEAD request first
@@ -64,17 +78,23 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
         content_disposition = head_resp.headers.get("Content-Disposition", "")
         
         # Test range support with a 0-0 range GET if uncertain
-        range_test = requests.get(final_url, headers={**req_headers, "Range": "bytes=0-0"}, timeout=timeout, stream=True)
-        if range_test.status_code == 206:
-            supports_range = True
-            if not content_len:
-                cr = range_test.headers.get("Content-Range", "")
-                if "/" in cr:
-                    total_bytes = int(cr.split("/")[1])
-        range_test.close()
+        try:
+            range_test = requests.get(final_url, headers={**req_headers, "Range": "bytes=0-0"}, timeout=timeout, stream=True)
+            if range_test.status_code == 206:
+                supports_range = True
+                if not content_len:
+                    cr = range_test.headers.get("Content-Range", "")
+                    if "/" in cr:
+                        total_bytes = int(cr.split("/")[1])
+            range_test.close()
+        except Exception:
+            pass
 
         if content_len:
-            total_bytes = int(content_len)
+            try:
+                total_bytes = int(content_len)
+            except Exception:
+                pass
         if "bytes" in accept_ranges.lower():
             supports_range = True
 
@@ -113,6 +133,26 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
         "supports_range": supports_range
     }
 
+def validate_refresh_url(new_url: str, expected_size: int = 0) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Validates a replacement URL for IDM Refresh Download Address:
+    Checks accessibility, byte-range resume support, and size parity.
+    """
+    try:
+        info = probe_url(new_url)
+        new_size = info.get("total_bytes", 0)
+        supports_range = info.get("supports_range", False)
+
+        if expected_size > 0 and new_size > 0 and new_size != expected_size:
+            return False, f"Size mismatch: Original file is {expected_size:,} bytes, but new URL provides {new_size:,} bytes.", info
+
+        if expected_size > 0 and not supports_range:
+            return False, "The replacement server does not support byte ranges. Resuming existing progress requires Range support.", info
+
+        return True, "URL verified successfully. Byte range and file size match.", info
+    except Exception as e:
+        return False, f"Verification failed: {str(e)}", {}
+
 class DownloadTask:
     def __init__(
         self,
@@ -120,6 +160,7 @@ class DownloadTask:
         url: str,
         save_path: str,
         connections: int = 8,
+        speed_limit: int = 0,
         on_progress: Optional[Callable[['DownloadTask'], None]] = None,
         on_complete: Optional[Callable[['DownloadTask'], None]] = None,
         on_error: Optional[Callable[['DownloadTask', str], None]] = None
@@ -128,6 +169,7 @@ class DownloadTask:
         self.url = url
         self.save_path = save_path
         self.connections = connections
+        self.speed_limiter = SpeedLimiter(speed_limit)
         self.on_progress = on_progress
         self.on_complete = on_complete
         self.on_error = on_error
@@ -147,6 +189,21 @@ class DownloadTask:
         self._last_time = time.time()
         self._last_downloaded = 0
 
+    def set_speed_limit(self, limit_bytes_per_sec: int):
+        self.speed_limiter.set_limit(limit_bytes_per_sec)
+
+    def refresh_url(self, new_url: str) -> bool:
+        """
+        Updates the URL of an existing download task (e.g. after expiration).
+        Persists into .pdownload and resets error states so download can resume.
+        """
+        self.url = new_url
+        self.error_message = ""
+        if self.status != "completed":
+            self.status = "paused"
+        self._save_metadata()
+        return True
+
     def prepare(self):
         # Load metadata if resuming
         if os.path.exists(self.meta_file) and os.path.exists(self.save_path):
@@ -157,6 +214,7 @@ class DownloadTask:
                     self.supports_range = data["supports_range"]
                     self.segments = [Segment.from_dict(s) for s in data["segments"]]
                     self.downloaded_bytes = sum(s.downloaded for s in self.segments)
+                    # If URL in metadata differs and self.url is set, keep current
                     return
             except Exception:
                 pass
@@ -166,7 +224,9 @@ class DownloadTask:
         self.total_bytes = info["total_bytes"]
         self.supports_range = info["supports_range"]
 
-        os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
+        save_dir = os.path.dirname(self.save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
 
         if self.supports_range and self.total_bytes > 0:
             # Pre-allocate sparse file
@@ -255,18 +315,30 @@ class DownloadTask:
     def _update_speed(self):
         now = time.time()
         elapsed = now - self._last_time
-        if elapsed >= 0.5:
+        if elapsed >= 0.2:
             delta = self.downloaded_bytes - self._last_downloaded
-            self.speed = delta / elapsed
+            self.speed = max(0.0, delta / elapsed)
             self._last_time = now
             self._last_downloaded = self.downloaded_bytes
             if self.on_progress:
                 self.on_progress(self)
 
     def _download_segment(self, seg: Segment):
+        net_mgr = NetworkManager()
+        is_local = "127.0.0.1" in self.url or "localhost" in self.url
+        assigned_if = None if is_local else net_mgr.get_interface_for_segment(seg.index)
+        if assigned_if:
+            seg.assigned_adapter = assigned_if.alias
+
+        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None)
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        auth_headers = CredentialsManager().get_auth_headers_for_url(self.url)
+        if auth_headers:
+            headers.update(auth_headers)
+
         start_byte = seg.current_offset
         if start_byte > seg.end:
             seg.completed = True
@@ -276,22 +348,35 @@ class DownloadTask:
         headers["Range"] = f"bytes={start_byte}-{seg.end}"
 
         try:
-            with requests.get(self.url, headers=headers, stream=True, timeout=15) as resp:
+            with session.get(self.url, headers=headers, stream=True, timeout=15) as resp:
+                if resp.status_code in (401, 403, 410):
+                    err = f"HTTP {resp.status_code} (Link Expired - Refresh Address)"
+                    raise RuntimeError(err)
+
                 if resp.status_code not in (200, 206):
                     raise RuntimeError(f"HTTP {resp.status_code}")
 
                 mode = "r+b" if os.path.exists(self.save_path) else "w+b"
                 with open(self.save_path, mode) as f:
                     f.seek(start_byte)
-                    for chunk in resp.iter_content(chunk_size=65536):
+                    for chunk in resp.iter_content(chunk_size=32768):
                         if self._stop_event.is_set():
                             break
                         if chunk:
+                            # Apply speed limiter throttling if active
+                            self.speed_limiter.acquire(len(chunk))
+
                             with self._file_lock:
                                 f.seek(seg.current_offset)
                                 f.write(chunk)
+                                f.flush()
                                 seg.downloaded += len(chunk)
                                 self.downloaded_bytes += len(chunk)
+
+                            if assigned_if:
+                                assigned_if.record_bytes(len(chunk))
+                                assigned_if.update_speed()
+
                             self._update_speed()
 
                 if seg.downloaded >= seg.total_size:
@@ -308,15 +393,28 @@ class DownloadTask:
         self._check_completion()
 
     def _download_single_stream(self):
+        net_mgr = NetworkManager()
+        is_local = "127.0.0.1" in self.url or "localhost" in self.url
+        assigned_if = None if is_local else net_mgr.get_interface_for_segment(0)
+        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None)
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        auth_headers = CredentialsManager().get_auth_headers_for_url(self.url)
+        if auth_headers:
+            headers.update(auth_headers)
+
         mode = "ab" if (self.downloaded_bytes > 0 and self.supports_range) else "wb"
         if mode == "ab":
             headers["Range"] = f"bytes={self.downloaded_bytes}-"
 
         try:
-            with requests.get(self.url, headers=headers, stream=True, timeout=15) as resp:
+            with session.get(self.url, headers=headers, stream=True, timeout=15) as resp:
+                if resp.status_code in (401, 403, 410):
+                    err = f"HTTP {resp.status_code} (Link Expired - Refresh Address)"
+                    raise RuntimeError(err)
+
                 if resp.status_code not in (200, 206):
                     raise RuntimeError(f"HTTP {resp.status_code}")
 
@@ -325,10 +423,14 @@ class DownloadTask:
                         if self._stop_event.is_set():
                             break
                         if chunk:
+                            self.speed_limiter.acquire(len(chunk))
                             f.write(chunk)
                             self.downloaded_bytes += len(chunk)
                             if self.segments:
                                 self.segments[0].downloaded = self.downloaded_bytes
+                            if assigned_if:
+                                assigned_if.record_bytes(len(chunk))
+                                assigned_if.update_speed()
                             self._update_speed()
 
         except Exception as e:

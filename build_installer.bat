@@ -21,7 +21,11 @@ if not defined ISCC_EXE if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" 
 if not defined ISCC_EXE if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC_EXE=C:\Program Files\Inno Setup 6\ISCC.exe"
 
 if defined ISCC_EXE (
-    "%ISCC_EXE%" installer.iss
+    if "%~1"=="" (
+        "%ISCC_EXE%" installer.iss
+    ) else (
+        "%ISCC_EXE%" /DMyAppVersion="%~1" installer.iss
+    )
     if %ERRORLEVEL% neq 0 (
         echo [ERROR] Inno Setup compilation failed!
         exit /b %ERRORLEVEL%

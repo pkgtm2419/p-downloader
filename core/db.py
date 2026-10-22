@@ -78,6 +78,14 @@ class DownloadDB:
                     UPDATE downloads SET completed_at = datetime('now') WHERE id = ?
                 """, (download_id,))
 
+    def update_url(self, download_id: str, new_url: str):
+        with self.conn:
+            self.conn.execute("""
+                UPDATE downloads 
+                SET url = ?, error_message = NULL, status = 'paused'
+                WHERE id = ?
+            """, (new_url, download_id))
+
     def get_all_downloads(self) -> List[Dict[str, Any]]:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM downloads ORDER BY created_at DESC")

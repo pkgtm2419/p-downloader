@@ -1,0 +1,12 @@
+{
+  "name": "com.pdownloader.host",
+  "description": "P-Downloader Ultra Native Messaging Host",
+  "path": "pdownloader-host.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://*/"
+  ],
+  "allowed_extensions": [
+    "pdownloader@ultra.download"
+  ]
+}

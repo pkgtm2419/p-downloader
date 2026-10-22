@@ -13,6 +13,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import pyqtSignal
 from core.segment import probe_url
 from core.categories import get_category_for_filename, get_default_save_path, CATEGORY_EXTENSIONS
+from core.torrent import is_torrent_or_magnet, parse_magnet_uri, parse_torrent_file
 from .styles import format_bytes
 
 class AddDownloadDialog(QDialog):
@@ -52,9 +53,15 @@ class AddDownloadDialog(QDialog):
         self.btn_probe = QPushButton("Detect")
         self.btn_probe.setObjectName("secondaryBtn")
         self.btn_probe.clicked.connect(self._start_probe)
+
+        self.btn_torrent = QPushButton("📁 .Torrent...")
+        self.btn_torrent.setObjectName("secondaryBtn")
+        self.btn_torrent.setToolTip("Open local .torrent file")
+        self.btn_torrent.clicked.connect(self._browse_torrent_file)
         
         url_layout.addWidget(self.txt_url)
         url_layout.addWidget(self.btn_probe)
+        url_layout.addWidget(self.btn_torrent)
         layout.addWidget(url_group)
 
         # File Properties Group
@@ -128,8 +135,14 @@ class AddDownloadDialog(QDialog):
 
         cb = QApplication.clipboard()
         text = cb.text().strip()
-        if text.startswith("http://") or text.startswith("https://") or text.startswith("ftp://"):
+        if text.startswith("http://") or text.startswith("https://") or text.startswith("ftp://") or text.startswith("magnet:?"):
             self.txt_url.setText(text)
+            self._start_probe()
+
+    def _browse_torrent_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Torrent File", "", "Torrent Files (*.torrent);;All Files (*.*)")
+        if file_path:
+            self.txt_url.setText(file_path)
             self._start_probe()
 
     def _on_url_changed(self, text: str):
@@ -150,8 +163,31 @@ class AddDownloadDialog(QDialog):
 
         def run():
             try:
-                info = probe_url(url)
-                self.probe_finished.emit(info)
+                if url.startswith("magnet:?"):
+                    meta = parse_magnet_uri(url)
+                    info = {
+                        "url": url,
+                        "final_url": url,
+                        "filename": meta.get("name", "Torrent_Download"),
+                        "total_bytes": meta.get("total_bytes", 0),
+                        "supports_range": True,
+                        "is_torrent": True
+                    }
+                    self.probe_finished.emit(info)
+                elif url.endswith(".torrent") and os.path.exists(url):
+                    meta = parse_torrent_file(url)
+                    info = {
+                        "url": url,
+                        "final_url": url,
+                        "filename": meta.get("name", "Torrent_Download"),
+                        "total_bytes": meta.get("total_bytes", 0),
+                        "supports_range": True,
+                        "is_torrent": True
+                    }
+                    self.probe_finished.emit(info)
+                else:
+                    info = probe_url(url)
+                    self.probe_finished.emit(info)
             except Exception as e:
                 self.probe_failed.emit(str(e))
 

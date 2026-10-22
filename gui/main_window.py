@@ -18,6 +18,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 from core.engine import DownloadEngine
 from core.segment import DownloadTask
+from core.network_binder import NetworkManager
 from .styles import MAIN_STYLESHEET, format_bytes, format_speed, format_eta
 from .add_dialog import AddDownloadDialog
 from .download_dialog import DownloadDialog
@@ -25,6 +26,11 @@ from .settings_dialog import SettingsDialog
 from .batch_dialog import BatchDownloadDialog
 from .scheduler_dialog import SchedulerDialog
 from .grabber_dialog import GrabberDialog
+from .refresh_dialog import RefreshDownloadDialog
+from .drop_target import FloatingDropTarget
+from .site_logins_dialog import SiteLoginsDialog
+from .icons import get_sidebar_icon
+import winsound
 
 RESOURCES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources"))
 
@@ -49,6 +55,11 @@ class MainWindow(QMainWindow):
         self._init_menu_and_toolbar()
         self._init_ui()
         self._init_tray()
+
+        # IDM Floating Drop Target Basket
+        self.drop_target = FloatingDropTarget(self)
+        if self.engine.db.get_setting("show_drop_basket", "1") == "1":
+            self.drop_target.show()
 
         self.engine.add_listener(self._on_engine_update)
 
@@ -141,6 +152,13 @@ class MainWindow(QMainWindow):
 
         menu_downloads.addSeparator()
 
+        act_refresh_addr = QAction("🔄 &Refresh Download Address...", self)
+        act_refresh_addr.setShortcut("Ctrl+U")
+        act_refresh_addr.triggered.connect(self._refresh_selected_address)
+        menu_downloads.addAction(act_refresh_addr)
+
+        menu_downloads.addSeparator()
+
         self.act_speed_limit = QAction("⚡ Speed Limiter: Off", self)
         self.act_speed_limit.triggered.connect(self._toggle_speed_limiter)
         menu_downloads.addAction(self.act_speed_limit)
@@ -153,10 +171,21 @@ class MainWindow(QMainWindow):
         act_scheduler.triggered.connect(self.show_scheduler_dialog)
         menu_options.addAction(act_scheduler)
 
+        act_site_logins = QAction("🔑 &Site Logins & Passwords...", self)
+        act_site_logins.triggered.connect(self.show_site_logins_dialog)
+        menu_options.addAction(act_site_logins)
+
         act_settings = QAction("⚙️ &Preferences / Options...", self)
         act_settings.setShortcut("Ctrl+O")
         act_settings.triggered.connect(self.show_settings_dialog)
         menu_options.addAction(act_settings)
+
+        # ================= View Menu =================
+        menu_view = menubar.addMenu("&View")
+        self.act_view_drop = QAction("🎯 Show Floating Drop Basket", self, checkable=True)
+        self.act_view_drop.setChecked(True)
+        self.act_view_drop.toggled.connect(self._on_drop_toggled)
+        menu_view.addAction(self.act_view_drop)
 
         # ================= Help Menu =================
         menu_help = menubar.addMenu("&Help")
@@ -188,6 +217,10 @@ class MainWindow(QMainWindow):
         btn_pause.setToolTip("Pause selected download")
         btn_pause.triggered.connect(self._pause_selected)
 
+        btn_refresh = toolbar.addAction("🔄 Refresh Link")
+        btn_refresh.setToolTip("Refresh expired download address without losing progress (IDM feature)")
+        btn_refresh.triggered.connect(self._refresh_selected_address)
+
         btn_stop_all = toolbar.addAction("⏹️ Stop All")
         btn_stop_all.setToolTip("Stop all active downloads")
         btn_stop_all.triggered.connect(self.engine.pause_all)
@@ -216,6 +249,10 @@ class MainWindow(QMainWindow):
         btn_settings.setToolTip("Configure application preferences")
         btn_settings.triggered.connect(self.show_settings_dialog)
 
+        btn_drop = toolbar.addAction("🎯 Drop Basket")
+        btn_drop.setToolTip("Toggle desktop floating drag & drop basket")
+        btn_drop.triggered.connect(self._toggle_drop_target)
+
     def _init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -230,37 +267,82 @@ class MainWindow(QMainWindow):
         # Left Sidebar (TreeWidget)
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        self.tree.setFixedWidth(230)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setMinimumWidth(215)
+        self.tree.setIndentation(12)
         self.tree.setAnimated(True)
 
-        # Tree: Categories
-        root_cat = QTreeWidgetItem(self.tree, ["📁 Categories"])
-        root_cat.setExpanded(True)
-        root_cat.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
+        header_font = QFont("Segoe UI", 8, QFont.Weight.Bold)
+        header_color = QColor("#64748b")
 
-        self.item_all = QTreeWidgetItem(root_cat, ["  All Downloads"])
-        self.item_comp = QTreeWidgetItem(root_cat, ["  📦 Compressed"])
-        self.item_doc = QTreeWidgetItem(root_cat, ["  📄 Documents"])
-        self.item_music = QTreeWidgetItem(root_cat, ["  🎵 Music"])
-        self.item_prog = QTreeWidgetItem(root_cat, ["  💻 Programs"])
-        self.item_vid = QTreeWidgetItem(root_cat, ["  🎬 Video"])
+        # Tree: Categories
+        root_cat = QTreeWidgetItem(self.tree, ["CATEGORIES"])
+        root_cat.setExpanded(True)
+        root_cat.setFont(0, header_font)
+        root_cat.setForeground(0, header_color)
+        root_cat.setFlags(root_cat.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+
+        self.item_all = QTreeWidgetItem(root_cat, ["All Downloads"])
+        self.item_all.setIcon(0, get_sidebar_icon("all"))
+        self.item_all.setData(0, Qt.ItemDataRole.UserRole, "all")
+
+        self.item_comp = QTreeWidgetItem(root_cat, ["Compressed"])
+        self.item_comp.setIcon(0, get_sidebar_icon("compressed"))
+        self.item_comp.setData(0, Qt.ItemDataRole.UserRole, "compressed")
+
+        self.item_doc = QTreeWidgetItem(root_cat, ["Documents"])
+        self.item_doc.setIcon(0, get_sidebar_icon("documents"))
+        self.item_doc.setData(0, Qt.ItemDataRole.UserRole, "documents")
+
+        self.item_music = QTreeWidgetItem(root_cat, ["Music"])
+        self.item_music.setIcon(0, get_sidebar_icon("music"))
+        self.item_music.setData(0, Qt.ItemDataRole.UserRole, "music")
+
+        self.item_prog = QTreeWidgetItem(root_cat, ["Programs"])
+        self.item_prog.setIcon(0, get_sidebar_icon("programs"))
+        self.item_prog.setData(0, Qt.ItemDataRole.UserRole, "programs")
+
+        self.item_vid = QTreeWidgetItem(root_cat, ["Video"])
+        self.item_vid.setIcon(0, get_sidebar_icon("video"))
+        self.item_vid.setData(0, Qt.ItemDataRole.UserRole, "video")
 
         # Tree: Status
-        root_status = QTreeWidgetItem(self.tree, ["📊 Status"])
+        root_status = QTreeWidgetItem(self.tree, ["STATUS"])
         root_status.setExpanded(True)
-        root_status.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
+        root_status.setFont(0, header_font)
+        root_status.setForeground(0, header_color)
+        root_status.setFlags(root_status.flags() & ~Qt.ItemFlag.ItemIsSelectable)
 
-        self.item_downloading = QTreeWidgetItem(root_status, ["  ⏳ Downloading / Active"])
-        self.item_finished = QTreeWidgetItem(root_status, ["  ✅ Finished / Completed"])
-        self.item_paused = QTreeWidgetItem(root_status, ["  ⏸️ Paused"])
+        self.item_downloading = QTreeWidgetItem(root_status, ["Downloading"])
+        self.item_downloading.setIcon(0, get_sidebar_icon("downloading"))
+        self.item_downloading.setData(0, Qt.ItemDataRole.UserRole, "downloading")
+
+        self.item_finished = QTreeWidgetItem(root_status, ["Finished"])
+        self.item_finished.setIcon(0, get_sidebar_icon("finished"))
+        self.item_finished.setData(0, Qt.ItemDataRole.UserRole, "finished")
+
+        self.item_paused = QTreeWidgetItem(root_status, ["Paused"])
+        self.item_paused.setIcon(0, get_sidebar_icon("paused"))
+        self.item_paused.setData(0, Qt.ItemDataRole.UserRole, "paused")
+
+        self.item_error = QTreeWidgetItem(root_status, ["Error / Expired"])
+        self.item_error.setIcon(0, get_sidebar_icon("error"))
+        self.item_error.setData(0, Qt.ItemDataRole.UserRole, "error")
 
         # Tree: Queues
-        root_queues = QTreeWidgetItem(self.tree, ["📋 Queues"])
+        root_queues = QTreeWidgetItem(self.tree, ["QUEUES"])
         root_queues.setExpanded(True)
-        root_queues.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
+        root_queues.setFont(0, header_font)
+        root_queues.setForeground(0, header_color)
+        root_queues.setFlags(root_queues.flags() & ~Qt.ItemFlag.ItemIsSelectable)
 
-        self.item_queue_main = QTreeWidgetItem(root_queues, ["  ⚡ Main Download Queue"])
-        self.item_queue_sync = QTreeWidgetItem(root_queues, ["  🔄 Sync Queue"])
+        self.item_queue_main = QTreeWidgetItem(root_queues, ["Main Queue"])
+        self.item_queue_main.setIcon(0, get_sidebar_icon("queue_main"))
+        self.item_queue_main.setData(0, Qt.ItemDataRole.UserRole, "queue_main")
+
+        self.item_queue_sync = QTreeWidgetItem(root_queues, ["Sync Queue"])
+        self.item_queue_sync.setIcon(0, get_sidebar_icon("queue_sync"))
+        self.item_queue_sync.setData(0, Qt.ItemDataRole.UserRole, "queue_sync")
 
         self.tree.setCurrentItem(self.item_all)
         self.tree.itemClicked.connect(self._on_tree_selected)
@@ -299,12 +381,18 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(self.table)
         splitter.setSizes([230, 920])
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
 
         main_layout.addWidget(splitter)
 
         # Status Bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+
+        self.lbl_net_status = QLabel("🌐 Bonding: Active  ")
+        self.lbl_net_status.setStyleSheet("color: #10b981; font-weight: bold;")
+        self.status_bar.addPermanentWidget(self.lbl_net_status)
 
         self.lbl_speed_limiter_status = QLabel("⚡ Speed Limiter: OFF  ")
         self.lbl_speed_limiter_status.setStyleSheet("color: #64748b; font-weight: bold;")
@@ -327,6 +415,9 @@ class MainWindow(QMainWindow):
 
         act_add_t = tray_menu.addAction("Add Download...")
         act_add_t.triggered.connect(self.show_add_dialog)
+
+        act_drop_t = tray_menu.addAction("Toggle Drop Basket")
+        act_drop_t.triggered.connect(self._toggle_drop_target)
 
         tray_menu.addSeparator()
 
@@ -435,38 +526,81 @@ class MainWindow(QMainWindow):
     # ================= Table Loading & Rendering =================
     def _load_table_data(self):
         items = self.engine.db.get_all_downloads()
-        filter_text = self._get_current_filter().strip()
+        filter_key = self._get_current_filter()
 
         filtered = []
         for item in items:
-            if "All Downloads" in filter_text:
+            cat = item.get("category", "")
+            st = item.get("status", "")
+            if filter_key == "all":
                 filtered.append(item)
-            elif "Compressed" in filter_text and item["category"] == "Compressed":
+            elif filter_key == "compressed" and cat == "Compressed":
                 filtered.append(item)
-            elif "Documents" in filter_text and item["category"] == "Documents":
+            elif filter_key == "documents" and cat == "Documents":
                 filtered.append(item)
-            elif "Music" in filter_text and item["category"] == "Music":
+            elif filter_key == "music" and cat == "Music":
                 filtered.append(item)
-            elif "Programs" in filter_text and item["category"] == "Programs":
+            elif filter_key == "programs" and cat == "Programs":
                 filtered.append(item)
-            elif "Video" in filter_text and item["category"] == "Video":
+            elif filter_key == "video" and cat == "Video":
                 filtered.append(item)
-            elif "Finished" in filter_text and item["status"] == "completed":
+            elif filter_key == "downloading" and st == "downloading":
                 filtered.append(item)
-            elif "Downloading" in filter_text and item["status"] == "downloading":
+            elif filter_key == "finished" and st == "completed":
                 filtered.append(item)
-            elif "Paused" in filter_text and item["status"] == "paused":
+            elif filter_key == "paused" and st == "paused":
                 filtered.append(item)
-            elif "Queue" in filter_text:
+            elif filter_key == "error" and st == "error":
+                filtered.append(item)
+            elif filter_key in ("queue_main", "queue_sync"):
                 filtered.append(item)
 
         self.table.setRowCount(len(filtered))
         for row, item in enumerate(filtered):
             self._set_table_row(row, item)
 
+        self._update_sidebar_counts(items)
+
     def _get_current_filter(self) -> str:
         current = self.tree.currentItem()
-        return current.text(0) if current else "All Downloads"
+        if not current:
+            return "all"
+        key = current.data(0, Qt.ItemDataRole.UserRole)
+        return key or "all"
+
+    def _update_sidebar_counts(self, items: list = None):
+        if items is None:
+            items = self.engine.db.get_all_downloads()
+
+        c_all = len(items)
+        c_comp = sum(1 for i in items if i.get("category") == "Compressed")
+        c_doc = sum(1 for i in items if i.get("category") == "Documents")
+        c_music = sum(1 for i in items if i.get("category") == "Music")
+        c_prog = sum(1 for i in items if i.get("category") == "Programs")
+        c_vid = sum(1 for i in items if i.get("category") == "Video")
+
+        c_down = sum(1 for i in items if i.get("status") == "downloading")
+        c_fin = sum(1 for i in items if i.get("status") == "completed")
+        c_paused = sum(1 for i in items if i.get("status") == "paused")
+        c_err = sum(1 for i in items if i.get("status") == "error")
+
+        self._set_item_count(self.item_all, "All Downloads", c_all)
+        self._set_item_count(self.item_comp, "Compressed", c_comp)
+        self._set_item_count(self.item_doc, "Documents", c_doc)
+        self._set_item_count(self.item_music, "Music", c_music)
+        self._set_item_count(self.item_prog, "Programs", c_prog)
+        self._set_item_count(self.item_vid, "Video", c_vid)
+
+        self._set_item_count(self.item_downloading, "Downloading", c_down)
+        self._set_item_count(self.item_finished, "Finished", c_fin)
+        self._set_item_count(self.item_paused, "Paused", c_paused)
+        self._set_item_count(self.item_error, "Error / Expired", c_err)
+
+    def _set_item_count(self, item: QTreeWidgetItem, name: str, count: int):
+        if count > 0:
+            item.setText(0, f"{name} ({count})")
+        else:
+            item.setText(0, name)
 
     def _set_table_row(self, row: int, item: dict):
         task_id = item["id"]
@@ -594,6 +728,10 @@ class MainWindow(QMainWindow):
         summary = f"Active Downloads: {downloading_count}  |  Total Bandwidth: {format_speed(active_speed)}"
         self.status_bar.showMessage(summary)
 
+        nm = NetworkManager()
+        active_count = len(nm.get_active_interfaces()) if nm.bonding_enabled else 1
+        self.lbl_net_status.setText(f"🌐 Bonding: {active_count} Adapter(s)  ")
+
     def _on_tree_selected(self, item: QTreeWidgetItem, column: int):
         self._load_table_data()
 
@@ -605,11 +743,17 @@ class MainWindow(QMainWindow):
         task_id = fn_item.data(Qt.ItemDataRole.UserRole)
         task = self.engine.tasks.get(task_id)
         if task:
-            self.open_transfer_dialog(task)
+            if task.status == "error" and ("Link Expired" in task.error_message or "403" in task.error_message):
+                self.show_refresh_dialog(task_id)
+            else:
+                self.open_transfer_dialog(task)
         else:
             item = self.engine.db.get_download(task_id)
-            if item and os.path.exists(item["save_path"]):
-                os.startfile(item["save_path"])
+            if item:
+                if item.get("status") == "error":
+                    self.show_refresh_dialog(task_id)
+                elif os.path.exists(item["save_path"]):
+                    os.startfile(item["save_path"])
 
     def _get_selected_task_ids(self) -> list:
         selected_rows = set(index.row() for index in self.table.selectedIndexes())
@@ -693,6 +837,7 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         act_resume = menu.addAction("▶️ Resume")
         act_pause = menu.addAction("⏸️ Pause")
+        act_refresh_addr = menu.addAction("🔄 Refresh Download Address...")
         menu.addSeparator()
 
         act_open_file = menu.addAction("📄 Open File")
@@ -715,6 +860,8 @@ class MainWindow(QMainWindow):
             self._resume_selected()
         elif action == act_pause:
             self._pause_selected()
+        elif action == act_refresh_addr:
+            self.show_refresh_dialog(task_ids[0])
         elif action == act_open_file and file_exists:
             os.startfile(save_path)
         elif action == act_open_folder:
@@ -755,9 +902,43 @@ class MainWindow(QMainWindow):
 
     def _on_engine_update(self, task: DownloadTask):
         if task.status == "completed":
-            self.tray.showMessage(
-                "Download Finished",
-                f"{os.path.basename(task.save_path)} has finished downloading.",
-                QSystemTrayIcon.MessageIcon.Information,
-                3000
-            )
+            if self.engine.db.get_setting("sound_on_finish", "1") == "1":
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except Exception:
+                    pass
+
+            if self.engine.db.get_setting("toast_on_finish", "1") == "1":
+                self.tray.showMessage(
+                    "Download Finished",
+                    f"{os.path.basename(task.save_path)} has finished downloading.",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    4000
+                )
+
+    def show_refresh_dialog(self, task_id: str):
+        dlg = RefreshDownloadDialog(self, self.engine, task_id)
+        if dlg.exec():
+            self._load_table_data()
+
+    def show_site_logins_dialog(self):
+        dlg = SiteLoginsDialog(self)
+        dlg.exec()
+
+    def _refresh_selected_address(self):
+        task_ids = self._get_selected_task_ids()
+        if not task_ids:
+            QMessageBox.information(self, "Select Download", "Please select a download to refresh its address.")
+            return
+        self.show_refresh_dialog(task_ids[0])
+
+    def _toggle_drop_target(self):
+        if hasattr(self, 'drop_target'):
+            new_vis = not self.drop_target.isVisible()
+            self.drop_target.setVisible(new_vis)
+            if hasattr(self, 'act_view_drop'):
+                self.act_view_drop.setChecked(new_vis)
+
+    def _on_drop_toggled(self, checked: bool):
+        if hasattr(self, 'drop_target'):
+            self.drop_target.setVisible(checked)

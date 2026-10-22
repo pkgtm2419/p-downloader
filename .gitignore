@@ -55,8 +55,9 @@ downloads.db
 
 # Local application data directory and generated native host files
 .pdownloader/
-pdownloader_host.bat
-com.pdownloader.host.json
+/pdownloader_host.bat
+/com.pdownloader.host.json
+!resources/com.pdownloader.host.json
 
 # Local downloads and temporary test artifacts
 downloads/

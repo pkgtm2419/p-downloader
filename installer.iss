@@ -1,6 +1,8 @@
 ; Inno Setup Script for P-Downloader
 #define MyAppName "P-Downloader"
+#ifndef MyAppVersion
 #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "P-Downloader Project"
 #define MyAppURL "https://github.com/p-downloader"
 #define MyAppExeName "P-Downloader.exe"
@@ -41,8 +43,8 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; Auto-start task
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PDownloader"; ValueData: """{app}\{#MyAppExeName}"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
+; Auto-start task (HKCU Run)
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PDownloader"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
 
 ; Register Chrome Native Messaging Host
 Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.pdownloader.host"; ValueType: string; ValueData: "{userappdata}\.pdownloader\com.pdownloader.host.json"; Flags: uninsdeletekey

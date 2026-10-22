@@ -93,20 +93,31 @@ QToolButton:pressed {
 
 /* Left Sidebar Navigation (TreeWidget) */
 QTreeWidget {
-    background-color: #ffffff;
+    background-color: #f8fafc;
     color: #0f172a;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 6px;
+    border-radius: 8px;
+    padding: 8px 4px;
     outline: none;
+    selection-background-color: transparent;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+QTreeWidget::branch {
+    background: transparent;
+}
+
+QTreeWidget::branch:selected {
+    background: transparent;
 }
 
 QTreeWidget::item {
-    color: #1e293b;
-    padding: 7px 8px;
-    border-radius: 5px;
+    color: #334155;
+    padding: 6px 10px;
+    border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
+    margin: 1px 4px;
 }
 
 QTreeWidget::item:hover {
@@ -115,9 +126,19 @@ QTreeWidget::item:hover {
 }
 
 QTreeWidget::item:selected {
-    background-color: #10b981;
-    color: #ffffff;
-    font-weight: bold;
+    background-color: #ecfdf5;
+    color: #065f46;
+    font-weight: 600;
+    border-left: 3px solid #10b981;
+}
+
+QTreeWidget::item:selected:hover {
+    background-color: #d1fae5;
+    color: #047857;
+}
+
+QTreeWidget::branch {
+    background: transparent;
 }
 
 /* Splitter between sidebar and table */

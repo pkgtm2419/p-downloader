@@ -6,7 +6,9 @@
   "permissions": [
     "downloads",
     "contextMenus",
-    "nativeMessaging"
+    "nativeMessaging",
+    "storage",
+    "notifications"
   ],
   "background": {
     "service_worker": "background.js"

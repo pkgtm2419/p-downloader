@@ -24,6 +24,16 @@ def read_message() -> dict:
     return json.loads(raw_data.decode('utf-8'))
 
 def main():
+    # Add project root to sys.path so core.ipc can be imported
+    project_root = str(Path(__file__).parent.parent)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    try:
+        from core.ipc import send_to_running_instance
+    except Exception:
+        send_to_running_instance = None
+
     while True:
         try:
             msg = read_message()
@@ -34,11 +44,28 @@ def main():
             url = msg.get("url")
 
             if action == "download" and url:
-                # Launch main.py with the URL or pass to running instance
-                python_exe = sys.executable
-                main_py = str(Path(__file__).parent.parent / "main.py")
-                subprocess.Popen([python_exe, main_py, "--url", url])
-                send_message({"status": "success", "message": "Download sent to P-Downloader"})
+                delivered = False
+                if send_to_running_instance:
+                    delivered = send_to_running_instance({"action": "download", "url": url})
+
+                if not delivered:
+                    # Launch P-Downloader in background tray mode with the URL
+                    exe_same_dir = Path(sys.executable).parent / "P-Downloader.exe"
+                    exe_candidate = Path(project_root) / "P-Downloader.exe"
+                    dist_candidate = Path(project_root) / "dist" / "P-Downloader" / "P-Downloader.exe"
+                    
+                    if exe_same_dir.exists():
+                        subprocess.Popen([str(exe_same_dir), "--tray", "--url", url])
+                    elif exe_candidate.exists():
+                        subprocess.Popen([str(exe_candidate), "--tray", "--url", url])
+                    elif dist_candidate.exists():
+                        subprocess.Popen([str(dist_candidate), "--tray", "--url", url])
+                    else:
+                        python_exe = sys.executable
+                        main_py = str(Path(project_root) / "main.py")
+                        subprocess.Popen([python_exe, main_py, "--tray", "--url", url])
+
+                send_message({"status": "success", "message": "Download routed to P-Downloader Ultra"})
             elif action == "ping":
                 send_message({"status": "pong", "app": "P-Downloader"})
             else:

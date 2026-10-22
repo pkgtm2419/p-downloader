@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from core.db import DownloadDB
 from core.categories import DEFAULT_DOWNLOADS_DIR, CATEGORY_EXTENSIONS
+from core.network_binder import NetworkManager
 
 DEFAULT_AUTO_FILE_TYPES = (
     "3GP 7Z AAC ACE AIF ARJ ASF AVI BIN BZ2 EXE GZ GZIP IMG ISO LZH M4A M4V "
@@ -249,6 +250,62 @@ class SettingsDialog(QDialog):
 
         tabs.addTab(tab_br, "Browser")
 
+        # ==========================================
+        # Tab 7: Multi-Network Bonding (Plexo)
+        # ==========================================
+        tab_bonding = QWidget()
+        bonding_vbox = QVBoxLayout(tab_bonding)
+        bonding_vbox.setSpacing(10)
+
+        grp_bond = QGroupBox("Multi-Network Adapter Bandwidth Aggregation")
+        b_layout = QVBoxLayout(grp_bond)
+        self.chk_bonding = QCheckBox("Enable Multi-Network Adapter Bonding (Aggregate Bandwidth)")
+        self.chk_bonding.setChecked(True)
+        b_layout.addWidget(self.chk_bonding)
+
+        lbl_desc = QLabel(
+            "Download segments simultaneously across all active network connections "
+            "(e.g., Home Wi-Fi + Mobile 5G Hotspot + Ethernet) to achieve combined download speeds."
+        )
+        lbl_desc.setWordWrap(True)
+        lbl_desc.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        b_layout.addWidget(lbl_desc)
+
+        self.table_adapters = QTableWidget()
+        self.table_adapters.setColumnCount(4)
+        self.table_adapters.setHorizontalHeaderLabels(["Interface Name", "IP Address", "Status", "Bonding Active"])
+        self.table_adapters.horizontalHeader().setStretchLastSection(True)
+        b_layout.addWidget(self.table_adapters)
+
+        btn_refresh_adapters = QPushButton("🔄 Scan & Refresh Network Adapters")
+        btn_refresh_adapters.setObjectName("secondaryBtn")
+        btn_refresh_adapters.clicked.connect(self._refresh_adapters_table)
+        b_layout.addWidget(btn_refresh_adapters)
+
+        bonding_vbox.addWidget(grp_bond)
+        bonding_vbox.addStretch()
+        tabs.addTab(tab_bonding, "Network Bonding")
+
+        # ==========================================
+        # Tab 8: Sounds & Notifications
+        # ==========================================
+        tab_sounds = QWidget()
+        snd_vbox = QVBoxLayout(tab_sounds)
+        grp_snd = QGroupBox("Sound & Desktop Notifications")
+        s_layout = QVBoxLayout(grp_snd)
+
+        self.chk_sound_finish = QCheckBox("Play notification chime when a download completes")
+        self.chk_sound_finish.setChecked(True)
+        s_layout.addWidget(self.chk_sound_finish)
+
+        self.chk_toast_finish = QCheckBox("Display Windows system notification banner on completion")
+        self.chk_toast_finish.setChecked(True)
+        s_layout.addWidget(self.chk_toast_finish)
+
+        snd_vbox.addWidget(grp_snd)
+        snd_vbox.addStretch()
+        tabs.addTab(tab_sounds, "Sounds")
+
         main_layout.addWidget(tabs)
 
         # Bottom Buttons
@@ -292,6 +349,24 @@ class SettingsDialog(QDialog):
         self.txt_proxy_host.setText(self.db.get_setting("proxy_host", ""))
         self.spin_proxy_port.setValue(int(self.db.get_setting("proxy_port", "8080")))
 
+        # Bonding & Sounds
+        self.chk_bonding.setChecked(self.db.get_setting("network_bonding", "1") == "1")
+        self.chk_sound_finish.setChecked(self.db.get_setting("sound_on_finish", "1") == "1")
+        self.chk_toast_finish.setChecked(self.db.get_setting("toast_on_finish", "1") == "1")
+        self._refresh_adapters_table()
+
+    def _refresh_adapters_table(self):
+        nm = NetworkManager()
+        adapters = nm.refresh_interfaces()
+        self.table_adapters.setRowCount(len(adapters))
+        for row, iface in enumerate(adapters):
+            self.table_adapters.setItem(row, 0, QTableWidgetItem(iface.alias))
+            self.table_adapters.setItem(row, 1, QTableWidgetItem(iface.ip))
+            role = "Default Gateway" if iface.is_default else "Secondary / Tethering"
+            self.table_adapters.setItem(row, 2, QTableWidgetItem(role))
+            status = "Active & Bonded" if iface.enabled else "Disabled"
+            self.table_adapters.setItem(row, 3, QTableWidgetItem(status))
+
     def _save_settings(self):
         # General
         self.db.set_setting("auto_startup", "1" if self.chk_startup.isChecked() else "0")
@@ -319,6 +394,15 @@ class SettingsDialog(QDialog):
         self.db.set_setting("proxy_proto", self.cmb_proxy_proto.currentText())
         self.db.set_setting("proxy_host", self.txt_proxy_host.text().strip())
         self.db.set_setting("proxy_port", str(self.spin_proxy_port.value()))
+
+        # Bonding & Sounds
+        self.db.set_setting("network_bonding", "1" if self.chk_bonding.isChecked() else "0")
+        self.db.set_setting("sound_on_finish", "1" if self.chk_sound_finish.isChecked() else "0")
+        self.db.set_setting("toast_on_finish", "1" if self.chk_toast_finish.isChecked() else "0")
+
+        # Update NetworkManager singleton
+        nm = NetworkManager()
+        nm.bonding_enabled = self.chk_bonding.isChecked()
 
         self.accept()
 

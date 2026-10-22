@@ -139,6 +139,45 @@ class DownloadEngine:
             if row["status"] in ("paused", "queued") and row["id"] not in self.tasks:
                 self.resume_download(row["id"])
 
+    def refresh_download(self, task_id: str, new_url: str, resume_now: bool = True) -> bool:
+        """
+        Updates the URL of an expired or existing task, updates SQLite DB and metadata,
+        and seamlessly resumes download from exact previous offsets.
+        """
+        self.db.update_url(task_id, new_url)
+        task = self.tasks.get(task_id)
+        if task:
+            task.refresh_url(new_url)
+        else:
+            row = self.db.get_download(task_id)
+            if row:
+                task = DownloadTask(
+                    task_id=task_id,
+                    url=new_url,
+                    save_path=row["save_path"],
+                    connections=row.get("connections", 8),
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
+                task.prepare()
+                self.tasks[task_id] = task
+
+        if resume_now and task:
+            task.start()
+            self.db.update_status(task_id, "downloading")
+
+        if task:
+            self._notify_listeners(task)
+        return True
+
+    def set_speed_limit(self, limit_bytes_per_sec: int):
+        """
+        Applies a speed limit across all active tasks.
+        """
+        for task in self.tasks.values():
+            task.set_speed_limit(limit_bytes_per_sec)
+
     def _on_task_progress(self, task: DownloadTask):
         self._notify_listeners(task)
 
