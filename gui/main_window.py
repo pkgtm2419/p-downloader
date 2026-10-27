@@ -440,19 +440,29 @@ class MainWindow(QMainWindow):
             self.activateWindow()
 
     # ================= Dialog Invocations =================
-    def show_add_dialog(self, initial_url: str = ""):
+    def show_add_dialog(
+        self,
+        initial_url: str = "",
+        initial_filename: str = "",
+        referer: str = "",
+        headers: dict = None,
+        start_now: bool = False
+    ):
         # Check if URL is an HLS master playlist with selectable qualities
         if initial_url and ".m3u8" in initial_url.lower():
             try:
                 import requests
                 from core.hls_downloader import HLSParser
                 from gui.video_quality_dialog import VideoQualityDialog
-                resp = requests.get(initial_url, timeout=5)
+                req_hdrs = headers or {}
+                if referer and "referer" not in [k.lower() for k in req_hdrs]:
+                    req_hdrs["Referer"] = referer
+                resp = requests.get(initial_url, headers=req_hdrs, timeout=5)
                 if resp.status_code == 200 and HLSParser.is_master_playlist(resp.text):
                     variants = HLSParser.parse_master_playlist(resp.text, initial_url)
                     if variants:
                         default_dir = self.engine.db.get_setting("default_download_path", os.path.expanduser("~/Downloads"))
-                        v_dlg = VideoQualityDialog("HLS Stream Video", variants, default_dir, self)
+                        v_dlg = VideoQualityDialog(initial_filename or "HLS Stream Video", variants, default_dir, self)
                         if v_dlg.exec():
                             sel = v_dlg.selected_variant
                             task = self.engine.create_download(
@@ -467,7 +477,15 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
-        dlg = AddDownloadDialog(self, initial_url=initial_url)
+        if start_now and initial_url:
+            fn = initial_filename or None
+            task = self.engine.create_download(url=initial_url, filename=fn, auto_start=True)
+            self._load_table_data()
+            if self.engine.db.get_setting("show_dlg", "1") == "1":
+                self.open_transfer_dialog(task)
+            return
+
+        dlg = AddDownloadDialog(self, initial_url=initial_url, initial_filename=initial_filename)
         if dlg.exec():
             res = dlg.get_result()
             task = self.engine.create_download(

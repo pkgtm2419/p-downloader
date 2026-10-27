@@ -83,7 +83,17 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
         action = msg.get("action")
         url = msg.get("url")
         if action in ("download", "add_download") and url:
-            QTimer.singleShot(0, lambda u=url: window.show_add_dialog(initial_url=u))
+            fn = msg.get("filename", "")
+            ref = msg.get("referer", "")
+            hdrs = msg.get("requestHeaders") or {}
+            start_now = msg.get("startNow", False)
+            QTimer.singleShot(0, lambda u=url, f=fn, r=ref, h=hdrs, s=start_now: window.show_add_dialog(
+                initial_url=u,
+                initial_filename=f,
+                referer=r,
+                headers=h,
+                start_now=s
+            ))
         elif action == "restore":
             QTimer.singleShot(0, lambda: (window.showNormal(), window.activateWindow(), window.raise_()))
 

@@ -120,15 +120,14 @@
 
 You can download compiled release packages from the [**GitHub Releases**](https://github.com/pkgtm2419/p-downloader/releases/latest) page:
 
-| Package File | Operating System | Description |
-| :--- | :--- | :--- |
-| **`P-Downloader-Setup-v1.0.1.exe`** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry |
-| **`P-Downloader-v1.0.1-Portable.exe`** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage |
-| **`P-Downloader-v1.0.1-Windows-x64-Portable.zip`** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries |
-| **`P-Downloader-v1.0.1-Linux-x64.tar.gz`** | **Linux** (x64) | Standalone Linux portable package (tarball) |
-| **`pdownloader-browser-extension-v1.0.1.zip`** | **All Platforms** | Chrome, Edge, Brave, and Firefox WebExtension |
-| **`SHA256SUMS.txt`** | **All Platforms** | Cryptographic verification checksums for every release file |
-
+| Package File | Operating System | Description | Direct Download |
+| :--- | :--- | :--- | :--- |
+| **P-Downloader-Setup.exe** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry | [📥 **Download Setup (.exe)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Setup.exe) |
+| **P-Downloader-Portable.exe** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage | [⚡ **Download Portable (.exe)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Portable.exe) |
+| **P-Downloader-Windows-x64-Portable.zip** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries | [📦 **Download Archive (.zip)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Windows-x64-Portable.zip) |
+| **P-Downloader-Linux-x64.tar.gz** | **Linux** (x64) | Standalone Linux portable package (tarball) | [🐧 **Download Linux (.tar.gz)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Linux-x64.tar.gz) |
+| **pdownloader-browser-extension.zip** | **All Platforms** | Chrome, Edge, Brave, and Firefox WebExtension | [🌐 **Download Extension (.zip)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/pdownloader-browser-extension.zip) |
+| **SHA256SUMS.txt** | **All Platforms** | Cryptographic verification checksums for every release file | [🔒 **Download Checksums**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/SHA256SUMS.txt) |
 ---
 
 ## 📦 Complete Installation Guide (Every OS)
@@ -136,13 +135,13 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 ### 1. Windows Installation
 
 #### Option A: Windows Setup Installer (Recommended)
-1. Download **`P-Downloader-Setup-v1.0.1.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-Setup-v1.0.2.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to seamlessly upgrade (preserving your history and settings) or perform a clean reinstall.
 3. The installer automatically registers native messaging host integration for Chrome, Edge, Brave, Chromium, and Firefox.
 4. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
 #### Option B: Portable Mode
-1. Download **`P-Downloader-v1.0.1-Portable.exe`** or extract **`P-Downloader-v1.0.1-Windows-x64-Portable.zip`**.
+1. Download **`P-Downloader-v1.0.2-Portable.exe`** or extract **`P-Downloader-v1.0.2-Windows-x64-Portable.zip`**.
 2. Double-click `P-Downloader.exe` to run immediately without installation.
 
 #### Option C: Run from Source
@@ -168,10 +167,10 @@ python main.py
 ### 2. Linux Installation (Ubuntu, Debian, Fedora, Arch)
 
 #### Option A: Standalone Binary Package
-1. Download **`P-Downloader-v1.0.1-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-v1.0.2-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Extract the archive:
    ```bash
-   tar -xvf P-Downloader-v1.0.1-Linux-x64.tar.gz
+   tar -xvf P-Downloader-v1.0.2-Linux-x64.tar.gz
    cd P-Downloader
    ./P-Downloader
    ```
@@ -260,7 +259,7 @@ Run the automated registrar script:
    - **Microsoft Edge**: `edge://extensions`
    - **Firefox**: `about:debugging#/runtime/this-firefox`
 2. Turn ON **Developer mode** (top-right toggle).
-3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.1.zip`).
+3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.2.zip`).
 4. Select the `browser_extension` folder.
 5. You're ready! Right-click any downloadable link or click the floating video download pill on media pages.
 
@@ -316,7 +315,7 @@ build_installer.bat 1.0.1
 ```bash
 pip install -r requirements-dev.txt
 python3 -m PyInstaller --clean -y pdownloader.spec
-tar -czvf P-Downloader-v1.0.1-Linux-x64.tar.gz -C dist P-Downloader
+tar -czvf P-Downloader-v1.0.2-Linux-x64.tar.gz -C dist P-Downloader
 ```
 
 ---

@@ -116,9 +116,13 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path windows-assets | Out-Null
           Copy-Item "Output\P-Downloader-Setup.exe" "windows-assets\P-Downloader-Setup-v$env:RELEASE_VERSION.exe"
+          Copy-Item "Output\P-Downloader-Setup.exe" "windows-assets\P-Downloader-Setup.exe"
           Copy-Item "dist\P-Downloader-Portable.exe" "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Portable.exe"
+          Copy-Item "dist\P-Downloader-Portable.exe" "windows-assets\P-Downloader-Portable.exe"
           Compress-Archive -Path "dist\P-Downloader\*" -DestinationPath "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Windows-x64-Portable.zip" -CompressionLevel Optimal
+          Copy-Item "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Windows-x64-Portable.zip" "windows-assets\P-Downloader-Windows-x64-Portable.zip"
           Compress-Archive -Path "browser_extension\*" -DestinationPath "windows-assets\pdownloader-browser-extension-v$env:RELEASE_VERSION.zip" -CompressionLevel Optimal
+          Copy-Item "windows-assets\pdownloader-browser-extension-v$env:RELEASE_VERSION.zip" "windows-assets\pdownloader-browser-extension.zip"
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -192,6 +196,7 @@ jobs:
         run: |
           mkdir -p linux-assets
           tar -czvf "linux-assets/P-Downloader-v${RELEASE_VERSION}-Linux-x64.tar.gz" -C dist P-Downloader
+          cp "linux-assets/P-Downloader-v${RELEASE_VERSION}-Linux-x64.tar.gz" "linux-assets/P-Downloader-Linux-x64.tar.gz"
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -242,6 +247,28 @@ jobs:
           echo "================ SHA256 Checksums ========================"
           cat SHA256SUMS.txt
 
+      - name: Create Release Body Notes
+        shell: bash
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## 📥 Quick Download Links
+
+          | Package | Platform | Direct Download |
+          | :--- | :--- | :--- |
+          | 🪟 **Windows Setup Installer** | Windows 10/11 (x64) | [**Download P-Downloader-Setup.exe**](https://github.com/pkgtm2419/p-downloader/releases/download/${{ env.RELEASE_TAG }}/P-Downloader-Setup.exe) |
+          | 🪟 **Windows Standalone Portable** | Windows 10/11 (x64) | [**Download P-Downloader-Portable.exe**](https://github.com/pkgtm2419/p-downloader/releases/download/${{ env.RELEASE_TAG }}/P-Downloader-Portable.exe) |
+          | 🪟 **Windows Portable Archive** | Windows (x64) | [**Download P-Downloader-Windows-x64-Portable.zip**](https://github.com/pkgtm2419/p-downloader/releases/download/${{ env.RELEASE_TAG }}/P-Downloader-Windows-x64-Portable.zip) |
+          | 🐧 **Linux Standalone Tarball** | Linux (x64) | [**Download P-Downloader-Linux-x64.tar.gz**](https://github.com/pkgtm2419/p-downloader/releases/download/${{ env.RELEASE_TAG }}/P-Downloader-Linux-x64.tar.gz) |
+          | 🌐 **Browser Extension** | Chrome / Edge / Brave / Firefox | [**Download pdownloader-browser-extension.zip**](https://github.com/pkgtm2419/p-downloader/releases/download/${{ env.RELEASE_TAG }}/pdownloader-browser-extension.zip) |
+
+          ---
+          ### ✨ Key Capabilities in This Release:
+          - **Full Browser WebExtension**: In-page video sniffer bar, quality selector dropdown, HLS/M3U8 master playlist parsing, YouTube stream capture, and popup media link collector.
+          - **Smart Windows Setup**: Automatically detects existing installations with upgrade or clean reinstall options.
+          - **Download Dialog Fixes**: Reliable Pause, Stop, and Delete controls with zero auto-restart loop bugs.
+          - **Multi-Connection Acceleration**: Slices downloads into up to 32 concurrent HTTP streams with network adapter bonding.
+          EOF
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         env:
@@ -251,5 +278,6 @@ jobs:
           name: P-Downloader ${{ env.RELEASE_TAG }}
           draft: false
           prerelease: ${{ github.event.inputs.prerelease == true || github.event.inputs.prerelease == 'true' }}
+          body_path: release_notes.md
           generate_release_notes: true
           files: release-final/*

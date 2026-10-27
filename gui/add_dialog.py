@@ -20,7 +20,7 @@ class AddDownloadDialog(QDialog):
     probe_finished = pyqtSignal(dict)
     probe_failed = pyqtSignal(str)
 
-    def __init__(self, parent=None, initial_url: str = ""):
+    def __init__(self, parent=None, initial_url: str = "", initial_filename: str = ""):
         super().__init__(parent)
         self.setWindowTitle("Enter New Download Address")
         self.resize(520, 320)
@@ -30,12 +30,16 @@ class AddDownloadDialog(QDialog):
             self.setWindowIcon(QIcon(icon_path))
         
         self.initial_url = initial_url
+        self.initial_filename = initial_filename
         self.probed_info = None
 
         self.probe_finished.connect(self._on_probe_success)
         self.probe_failed.connect(self._on_probe_error)
 
         self._init_ui()
+        if self.initial_filename:
+            self.txt_filename.setText(self.initial_filename)
+            self._update_paths()
         self._check_clipboard()
 
     def _init_ui(self):

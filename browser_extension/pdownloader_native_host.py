@@ -88,7 +88,16 @@ def main():
 
             if action == "download" and url:
                 delivered = False
-                payload = {"action": "download", "url": url, "filename": filename, "referer": referer}
+                payload = {
+                    "action": "download",
+                    "url": url,
+                    "filename": filename,
+                    "referer": referer,
+                    "requestHeaders": msg.get("requestHeaders"),
+                    "audioUrl": msg.get("audioUrl"),
+                    "outputFormat": msg.get("outputFormat"),
+                    "startNow": msg.get("startNow", False)
+                }
                 if send_to_running_instance:
                     delivered = send_to_running_instance(payload)
 
@@ -110,19 +119,19 @@ def main():
                         main_py = str(Path(project_root) / "main.py")
                         subprocess.Popen([python_exe, main_py] + launch_cmd)
 
-                send_message({"status": "success", "message": "Download routed to P-Downloader Ultra"})
+                send_message({"ok": True, "status": "success", "message": "Download routed to P-Downloader"})
             elif action == "ping":
                 try:
                     from core import __version__ as app_version
                 except Exception:
                     app_version = "1.0.1"
-                send_message({"status": "pong", "app": "P-Downloader", "version": app_version})
+                send_message({"ok": True, "status": "pong", "app": "P-Downloader", "version": app_version})
             else:
-                send_message({"status": "error", "message": f"Unknown action: {action}"})
+                send_message({"ok": False, "status": "error", "error": f"Unknown action: {action}"})
 
         except Exception as e:
             log_debug(f"[LOOP EXCEPTION] {e}")
-            send_message({"status": "error", "error": str(e)})
+            send_message({"ok": False, "error": str(e)})
             break
 
 if __name__ == "__main__":
