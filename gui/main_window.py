@@ -27,7 +27,6 @@ from .batch_dialog import BatchDownloadDialog
 from .scheduler_dialog import SchedulerDialog
 from .grabber_dialog import GrabberDialog
 from .refresh_dialog import RefreshDownloadDialog
-from .drop_target import FloatingDropTarget
 from .site_logins_dialog import SiteLoginsDialog
 from .icons import get_sidebar_icon
 import winsound
@@ -55,11 +54,6 @@ class MainWindow(QMainWindow):
         self._init_menu_and_toolbar()
         self._init_ui()
         self._init_tray()
-
-        # IDM Floating Drop Target Basket
-        self.drop_target = FloatingDropTarget(self)
-        if self.engine.db.get_setting("show_drop_basket", "1") == "1":
-            self.drop_target.show()
 
         self.engine.add_listener(self._on_engine_update)
 
@@ -259,10 +253,6 @@ class MainWindow(QMainWindow):
         btn_settings.setToolTip("Configure application preferences")
         btn_settings.triggered.connect(self.show_settings_dialog)
 
-        btn_drop = toolbar.addAction("🎯 Drop Basket")
-        btn_drop.setToolTip("Toggle desktop floating drag & drop basket")
-        btn_drop.triggered.connect(self._toggle_drop_target)
-
     def _init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -426,9 +416,6 @@ class MainWindow(QMainWindow):
         act_add_t = tray_menu.addAction("Add Download...")
         act_add_t.triggered.connect(self.show_add_dialog)
 
-        act_drop_t = tray_menu.addAction("Toggle Drop Basket")
-        act_drop_t.triggered.connect(self._toggle_drop_target)
-
         tray_menu.addSeparator()
 
         act_pause_all_t = tray_menu.addAction("Pause All Downloads")
@@ -532,7 +519,7 @@ class MainWindow(QMainWindow):
             dlg.activateWindow()
             return
 
-        dlg = DownloadDialog(task, self)
+        dlg = DownloadDialog(task, self, self.engine)
         self.active_dialogs[task.task_id] = dlg
         dlg.finished.connect(lambda: self.active_dialogs.pop(task.task_id, None))
         dlg.show()
@@ -984,14 +971,3 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Select Download", "Please select a download to refresh its address.")
             return
         self.show_refresh_dialog(task_ids[0])
-
-    def _toggle_drop_target(self):
-        if hasattr(self, 'drop_target'):
-            new_vis = not self.drop_target.isVisible()
-            self.drop_target.setVisible(new_vis)
-            if hasattr(self, 'act_view_drop'):
-                self.act_view_drop.setChecked(new_vis)
-
-    def _on_drop_toggled(self, checked: bool):
-        if hasattr(self, 'drop_target'):
-            self.drop_target.setVisible(checked)

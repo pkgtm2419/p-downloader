@@ -7,7 +7,7 @@ import os
 import subprocess
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
-    QPushButton, QGroupBox, QGridLayout, QScrollArea, QWidget, QFrame
+    QPushButton, QGroupBox, QGridLayout, QScrollArea, QWidget, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QIcon, QFont, QPixmap
 from PyQt6.QtCore import Qt, QTimer
@@ -60,9 +60,10 @@ class SegmentBar(QWidget):
             self.pbar.setValue(100 if downloaded > 0 else 0)
 
 class DownloadDialog(QDialog):
-    def __init__(self, task: DownloadTask, parent=None):
+    def __init__(self, task: DownloadTask, parent=None, engine=None):
         super().__init__(parent)
         self.task = task
+        self.engine = engine or (parent.engine if parent and hasattr(parent, 'engine') else None)
         self.segment_bars = []
         
         filename = os.path.basename(task.save_path)
@@ -255,10 +256,16 @@ class DownloadDialog(QDialog):
         self.btn_pause.clicked.connect(self.toggle_pause)
         btn_layout.addWidget(self.btn_pause)
 
-        self.btn_cancel = QPushButton("⏹️ Cancel")
-        self.btn_cancel.setObjectName("secondaryBtn")
-        self.btn_cancel.clicked.connect(self.cancel_download)
-        btn_layout.addWidget(self.btn_cancel)
+        self.btn_stop = QPushButton("⏹️ Stop")
+        self.btn_stop.setObjectName("secondaryBtn")
+        self.btn_stop.clicked.connect(self.stop_download)
+        btn_layout.addWidget(self.btn_stop)
+
+        self.btn_delete = QPushButton("❌ Delete")
+        self.btn_delete.setObjectName("secondaryBtn")
+        self.btn_delete.setStyleSheet("QPushButton#secondaryBtn:hover { background-color: #ef4444; color: white; border-color: #ef4444; }")
+        self.btn_delete.clicked.connect(self.delete_download)
+        btn_layout.addWidget(self.btn_delete)
 
         self.btn_minimize = QPushButton("⬇️ To Tray")
         self.btn_minimize.setObjectName("secondaryBtn")
@@ -327,16 +334,24 @@ class DownloadDialog(QDialog):
         # Buttons state
         if self.task.status == "completed":
             self.btn_pause.setEnabled(False)
+            self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(False)
             self.btn_open_file.setEnabled(True)
             self.btn_open_folder.setEnabled(True)
         elif self.task.status == "paused":
             self.btn_pause.setText("▶️ Resume")
+            self.btn_pause.setEnabled(True)
+            self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(False)
         elif self.task.status == "downloading":
             self.btn_pause.setText("⏸️ Pause")
+            self.btn_pause.setEnabled(True)
+            self.btn_stop.setEnabled(True)
             self.btn_refresh.setVisible(False)
-        elif self.task.status == "error":
+        elif self.task.status in ("error", "cancelled"):
+            self.btn_pause.setText("▶️ Resume")
+            self.btn_pause.setEnabled(True)
+            self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(True)
 
     def _on_refresh_clicked(self):
@@ -347,14 +362,39 @@ class DownloadDialog(QDialog):
 
     def toggle_pause(self):
         if self.task.status == "downloading":
-            self.task.pause()
-        elif self.task.status == "paused":
-            self.task.start()
+            if self.engine:
+                self.engine.pause_download(self.task.task_id)
+            else:
+                self.task.pause()
+        elif self.task.status in ("paused", "queued", "error", "cancelled"):
+            if self.engine:
+                self.engine.resume_download(self.task.task_id)
+            else:
+                self.task.start()
         self.refresh_ui()
 
-    def cancel_download(self):
-        self.task.cancel()
-        self.close()
+    def stop_download(self):
+        if self.engine:
+            self.engine.pause_download(self.task.task_id)
+        else:
+            self.task.pause()
+        self.refresh_ui()
+
+    def delete_download(self):
+        filename = os.path.basename(self.task.save_path)
+        reply = QMessageBox.question(
+            self,
+            "Delete Download",
+            f"Are you sure you want to stop and delete '{filename}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.engine:
+                self.engine.delete_download(self.task.task_id, delete_file=True)
+            else:
+                self.task.cancel()
+            self.close()
 
     def open_file(self):
         if os.path.exists(self.task.save_path):

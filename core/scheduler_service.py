@@ -78,6 +78,8 @@ class SchedulerService:
     def _manage_concurrency(self):
         """
         Enforces simultaneous download limits across the active queue.
+        Only picks up tasks that are QUEUED waiting for an available slot.
+        Paused tasks are never automatically resumed.
         """
         db = self.engine.db
         try:
@@ -90,10 +92,11 @@ class SchedulerService:
             self._had_active_downloads = True
 
         if len(active_tasks) < max_simultaneous:
-            # Look for tasks in database that are pending/paused and should be resumed
-            paused_tasks = [t for t in self.engine.tasks.values() if t.status == "paused"]
+            # Only start tasks that are queued waiting for a slot.
+            # Never automatically resume tasks that were paused by the user.
+            queued_tasks = [t for t in self.engine.tasks.values() if t.status == "queued"]
             slots_available = max_simultaneous - len(active_tasks)
-            for t in paused_tasks[:slots_available]:
+            for t in queued_tasks[:slots_available]:
                 self.engine.resume_download(t.task_id)
 
     def _check_completion(self):

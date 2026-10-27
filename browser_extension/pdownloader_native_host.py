@@ -1,6 +1,6 @@
 """
 Native Messaging Host for P-Downloader.
-Communicates with Chrome / Edge / Firefox WebExtensions via stdin/stdout binary framing.
+Communicates with Chrome / Edge / Brave / Firefox WebExtensions via stdin/stdout binary framing.
 """
 import sys
 import json
@@ -9,29 +9,70 @@ import os
 import subprocess
 from pathlib import Path
 
+# Set binary mode on Windows to prevent CRLF line-ending translation
+if sys.platform == "win32":
+    try:
+        import msvcrt
+        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+    except Exception:
+        pass
+
+LOG_FILE = Path.home() / ".pdownloader" / "native_host.log"
+
+def log_debug(msg: str):
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{msg}\n")
+    except Exception:
+        pass
+
 def send_message(message: dict):
-    raw_json = json.dumps(message).encode('utf-8')
-    sys.stdout.buffer.write(struct.pack('@I', len(raw_json)))
-    sys.stdout.buffer.write(raw_json)
-    sys.stdout.buffer.flush()
+    try:
+        raw_json = json.dumps(message).encode('utf-8')
+        sys.stdout.buffer.write(struct.pack('@I', len(raw_json)))
+        sys.stdout.buffer.write(raw_json)
+        sys.stdout.buffer.flush()
+        log_debug(f"[SENT] {message}")
+    except Exception as e:
+        log_debug(f"[ERROR SENDING] {e}")
+
+def read_bytes(count: int) -> bytes:
+    data = bytearray()
+    while len(data) < count:
+        try:
+            chunk = sys.stdin.buffer.read(count - len(data))
+        except Exception as e:
+            log_debug(f"[READ EXCEPTION] {e}")
+            break
+        if not chunk:
+            break
+        data.extend(chunk)
+    return bytes(data)
 
 def read_message() -> dict:
-    raw_length = sys.stdin.buffer.read(4)
-    if len(raw_length) == 0:
+    raw_length = read_bytes(4)
+    if len(raw_length) < 4:
         return {}
     length = struct.unpack('@I', raw_length)[0]
-    raw_data = sys.stdin.buffer.read(length)
-    return json.loads(raw_data.decode('utf-8'))
+    raw_data = read_bytes(length)
+    if len(raw_data) < length:
+        return {}
+    msg = json.loads(raw_data.decode('utf-8'))
+    log_debug(f"[RECEIVED] {msg}")
+    return msg
 
 def main():
-    # Add project root to sys.path so core.ipc can be imported
+    log_debug("--- P-Downloader Native Host Started ---")
     project_root = str(Path(__file__).parent.parent)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
     try:
         from core.ipc import send_to_running_instance
-    except Exception:
+    except Exception as e:
+        log_debug(f"[IPC IMPORT ERROR] {e}")
         send_to_running_instance = None
 
     while True:
@@ -39,7 +80,7 @@ def main():
             msg = read_message()
             if not msg:
                 break
-            
+
             action = msg.get("action")
             url = msg.get("url")
             filename = msg.get("filename", "")
@@ -56,7 +97,7 @@ def main():
                     exe_same_dir = Path(sys.executable).parent / "P-Downloader.exe"
                     exe_candidate = Path(project_root) / "P-Downloader.exe"
                     dist_candidate = Path(project_root) / "dist" / "P-Downloader" / "P-Downloader.exe"
-                    
+
                     launch_cmd = ["--tray", "--url", url]
                     if exe_same_dir.exists():
                         subprocess.Popen([str(exe_same_dir)] + launch_cmd)
@@ -71,11 +112,12 @@ def main():
 
                 send_message({"status": "success", "message": "Download routed to P-Downloader Ultra"})
             elif action == "ping":
-                send_message({"status": "pong", "app": "P-Downloader"})
+                send_message({"status": "pong", "app": "P-Downloader", "version": "2.0.0"})
             else:
                 send_message({"status": "error", "message": f"Unknown action: {action}"})
 
         except Exception as e:
+            log_debug(f"[LOOP EXCEPTION] {e}")
             send_message({"status": "error", "error": str(e)})
             break
 

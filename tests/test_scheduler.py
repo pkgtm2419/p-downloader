@@ -31,14 +31,25 @@ class TestSchedulerService(unittest.TestCase):
         self.db.set_setting("simultaneous_downloads", "2")
 
         task1 = MagicMock(task_id="t1", status="downloading")
-        task2 = MagicMock(task_id="t2", status="paused")
-        task3 = MagicMock(task_id="t3", status="paused")
+        task2 = MagicMock(task_id="t2", status="queued")
+        task3 = MagicMock(task_id="t3", status="queued")
 
         self.mock_engine.tasks = {"t1": task1, "t2": task2, "t3": task3}
 
         self.scheduler._manage_concurrency()
-        # Should resume task2 because active count (1) < limit (2)
+        # Should resume queued task2 because active count (1) < limit (2)
         self.mock_engine.resume_download.assert_called_once_with("t2")
+
+    def test_paused_tasks_never_auto_resumed(self):
+        self.db.set_setting("simultaneous_downloads", "5")
+
+        task1 = MagicMock(task_id="t1", status="paused")
+        task2 = MagicMock(task_id="t2", status="paused")
+        self.mock_engine.tasks = {"t1": task1, "t2": task2}
+
+        self.scheduler._manage_concurrency()
+        # Should NOT resume any paused tasks
+        self.mock_engine.resume_download.assert_not_called()
 
     def test_completion_detection(self):
         self.scheduler._had_active_downloads = True

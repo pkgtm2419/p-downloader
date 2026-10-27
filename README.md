@@ -66,7 +66,6 @@
 
 ### 🖥️ Native Desktop Experience & System Tray
 - **Modern Dark Interface**: Custom high-DPI desktop UI built with PyQt6.
-- **Floating Drop Target**: Drag-and-drop links or text onto an on-screen desktop drop target widget.
 - **Live Segment Visualizer**: Real-time progress bars showcasing individual download streams and network adapter allocations.
 - **Single-Instance IPC**: Running background instances accept new downloads instantly from the command line or browser extension.
 - **System Tray Execution**: Minimize to the system notification tray with completion alerts.
@@ -138,8 +137,9 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 
 #### Option A: Windows Setup Installer (Recommended)
 1. Download **`P-Downloader-Setup-v1.0.0.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
-2. Run the installer wizard.
-3. Launch P-Downloader from your Start Menu or Desktop shortcut.
+2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to seamlessly upgrade (preserving your history and settings) or perform a clean reinstall.
+3. The installer automatically registers native messaging host integration for Chrome, Edge, Brave, Chromium, and Firefox.
+4. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
 #### Option B: Portable Mode
 1. Download **`P-Downloader-v1.0.0-Portable.exe`** or extract **`P-Downloader-v1.0.0-Windows-x64-Portable.zip`**.
