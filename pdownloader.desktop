@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=P-Downloader
+GenericName=Download Accelerator
+Comment=Ultra high-speed multi-connection desktop download accelerator
+Exec=bash -c "$(dirname "%k")/run_pdownloader.sh" %u
+Icon=pdownloader
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;
+StartupNotify=true
+MimeType=x-scheme-handler/magnet;

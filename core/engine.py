@@ -2,6 +2,7 @@
 Central Download Engine controlling queues, persistence, and task lifecycles.
 """
 import uuid
+import threading
 from typing import Dict, List, Optional, Callable
 from .db import DownloadDB
 from .segment import DownloadTask, probe_url
@@ -44,15 +45,34 @@ class DownloadEngine:
 
         task_id = str(uuid.uuid4())[:8]
 
-        task = DownloadTask(
-            task_id=task_id,
-            url=url,
-            save_path=save_path,
-            connections=connections,
-            on_progress=self._on_task_progress,
-            on_complete=self._on_task_complete,
-            on_error=self._on_task_error
-        )
+        # Automatic HLS / M3U8 routing
+        if ".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8")):
+            from core.hls_downloader import HLSDownloadTask
+            # Ensure target filename is .mp4
+            if save_path.lower().endswith(".m3u8"):
+                save_path = save_path[:-5] + ".mp4"
+            if filename.lower().endswith(".m3u8"):
+                filename = filename[:-5] + ".mp4"
+
+            task = HLSDownloadTask(
+                task_id=task_id,
+                url=url,
+                save_path=save_path,
+                connections=connections,
+                on_progress=self._on_task_progress,
+                on_complete=self._on_task_complete,
+                on_error=self._on_task_error
+            )
+        else:
+            task = DownloadTask(
+                task_id=task_id,
+                url=url,
+                save_path=save_path,
+                connections=connections,
+                on_progress=self._on_task_progress,
+                on_complete=self._on_task_complete,
+                on_error=self._on_task_error
+            )
         task.prepare()
 
         # Save to database
@@ -184,6 +204,20 @@ class DownloadEngine:
     def _on_task_complete(self, task: DownloadTask):
         self.db.update_status(task.task_id, "completed", task.total_bytes)
         self._notify_listeners(task)
+
+        # Post-download security scan (IDM Antivirus Feature)
+        if self.db.get_setting("antivirus_enabled", "1") == "1":
+            def scan_worker():
+                try:
+                    from core.antivirus import AntivirusScanner
+                    custom_av = self.db.get_setting("antivirus_path", "")
+                    clean, msg = AntivirusScanner.scan_file(task.save_path, custom_av)
+                    if not clean:
+                        self.db.update_status(task.task_id, "error", task.total_bytes, f"Security Alert: {msg}")
+                        self._notify_listeners(task)
+                except Exception:
+                    pass
+            threading.Thread(target=scan_worker, daemon=True).start()
 
     def _on_task_error(self, task: DownloadTask, error_msg: str):
         self.db.update_status(task.task_id, "error", task.downloaded_bytes, error_msg)

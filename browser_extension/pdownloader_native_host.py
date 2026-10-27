@@ -42,11 +42,14 @@ def main():
             
             action = msg.get("action")
             url = msg.get("url")
+            filename = msg.get("filename", "")
+            referer = msg.get("referer", "")
 
             if action == "download" and url:
                 delivered = False
+                payload = {"action": "download", "url": url, "filename": filename, "referer": referer}
                 if send_to_running_instance:
-                    delivered = send_to_running_instance({"action": "download", "url": url})
+                    delivered = send_to_running_instance(payload)
 
                 if not delivered:
                     # Launch P-Downloader in background tray mode with the URL
@@ -54,16 +57,17 @@ def main():
                     exe_candidate = Path(project_root) / "P-Downloader.exe"
                     dist_candidate = Path(project_root) / "dist" / "P-Downloader" / "P-Downloader.exe"
                     
+                    launch_cmd = ["--tray", "--url", url]
                     if exe_same_dir.exists():
-                        subprocess.Popen([str(exe_same_dir), "--tray", "--url", url])
+                        subprocess.Popen([str(exe_same_dir)] + launch_cmd)
                     elif exe_candidate.exists():
-                        subprocess.Popen([str(exe_candidate), "--tray", "--url", url])
+                        subprocess.Popen([str(exe_candidate)] + launch_cmd)
                     elif dist_candidate.exists():
-                        subprocess.Popen([str(dist_candidate), "--tray", "--url", url])
+                        subprocess.Popen([str(dist_candidate)] + launch_cmd)
                     else:
                         python_exe = sys.executable
                         main_py = str(Path(project_root) / "main.py")
-                        subprocess.Popen([python_exe, main_py, "--tray", "--url", url])
+                        subprocess.Popen([python_exe, main_py] + launch_cmd)
 
                 send_message({"status": "success", "message": "Download routed to P-Downloader Ultra"})
             elif action == "ping":

@@ -5,7 +5,10 @@ and registers browser integration for Chrome, Edge, Brave, and Firefox.
 """
 import os
 import sys
-import winreg
+try:
+    import winreg
+except ImportError:
+    winreg = None
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
@@ -23,6 +26,9 @@ def set_windows_startup(enabled: bool):
     """
     Enables or disables launch on Windows startup in HKCU Run registry.
     """
+    if sys.platform != "win32" or winreg is None:
+        return
+
     reg_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
     app_name = "PDownloader"
     if getattr(sys, "frozen", False):

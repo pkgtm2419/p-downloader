@@ -359,7 +359,7 @@ class DownloadTask:
                 mode = "r+b" if os.path.exists(self.save_path) else "w+b"
                 with open(self.save_path, mode) as f:
                     f.seek(start_byte)
-                    for chunk in resp.iter_content(chunk_size=32768):
+                    for chunk in resp.iter_content(chunk_size=65536):
                         if self._stop_event.is_set():
                             break
                         if chunk:
@@ -369,7 +369,6 @@ class DownloadTask:
                             with self._file_lock:
                                 f.seek(seg.current_offset)
                                 f.write(chunk)
-                                f.flush()
                                 seg.downloaded += len(chunk)
                                 self.downloaded_bytes += len(chunk)
 

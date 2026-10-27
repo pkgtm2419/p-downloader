@@ -73,7 +73,17 @@ class MainWindow(QMainWindow):
         self.clip_timer.timeout.connect(self._check_clipboard_link)
         self.clip_timer.start(1000)
 
+        # Background Scheduler & Queue Automation Daemon (IDM Feature)
+        from core.scheduler_service import SchedulerService
+        self.scheduler = SchedulerService(self.engine, on_exit_requested=self.close)
+        self.scheduler.start()
+
         self._load_table_data()
+
+    def closeEvent(self, event):
+        if hasattr(self, "scheduler"):
+            self.scheduler.stop()
+        event.accept()
 
     def _init_menu_and_toolbar(self):
         menubar = self.menuBar()
@@ -443,6 +453,32 @@ class MainWindow(QMainWindow):
 
     # ================= Dialog Invocations =================
     def show_add_dialog(self, initial_url: str = ""):
+        # Check if URL is an HLS master playlist with selectable qualities
+        if initial_url and ".m3u8" in initial_url.lower():
+            try:
+                import requests
+                from core.hls_downloader import HLSParser
+                from gui.video_quality_dialog import VideoQualityDialog
+                resp = requests.get(initial_url, timeout=5)
+                if resp.status_code == 200 and HLSParser.is_master_playlist(resp.text):
+                    variants = HLSParser.parse_master_playlist(resp.text, initial_url)
+                    if variants:
+                        default_dir = self.engine.db.get_setting("default_download_path", os.path.expanduser("~/Downloads"))
+                        v_dlg = VideoQualityDialog("HLS Stream Video", variants, default_dir, self)
+                        if v_dlg.exec():
+                            sel = v_dlg.selected_variant
+                            task = self.engine.create_download(
+                                url=sel["url"],
+                                save_path=v_dlg.output_path,
+                                auto_start=v_dlg.start_immediately
+                            )
+                            self._load_table_data()
+                            if v_dlg.start_immediately and self.engine.db.get_setting("show_dlg", "1") == "1":
+                                self.open_transfer_dialog(task)
+                            return
+            except Exception:
+                pass
+
         dlg = AddDownloadDialog(self, initial_url=initial_url)
         if dlg.exec():
             res = dlg.get_result()
@@ -510,18 +546,35 @@ class MainWindow(QMainWindow):
         if not text or text == self.last_clipboard_text:
             return
 
-        # Check if URL ends with common downloadable media extensions
+        # Check if URL ends with common downloadable media extensions or is a magnet link
         lower = text.lower()
-        if (lower.startswith("http://") or lower.startswith("https://")) and any(
-            lower.endswith(ext) for ext in [
+        is_magnet = lower.startswith("magnet:?xt=")
+        is_media_url = (lower.startswith("http://") or lower.startswith("https://") or lower.startswith("ftp://")) and (
+            any(lower.endswith(ext) for ext in [
                 ".zip", ".rar", ".7z", ".tar", ".gz", ".iso", ".exe", ".msi",
-                ".mp4", ".mkv", ".avi", ".webm", ".mp3", ".wav", ".pdf"
-            ]
-        ):
+                ".mp4", ".mkv", ".avi", ".webm", ".mp3", ".wav", ".flac", ".pdf",
+                ".m3u8", ".apk", ".dmg"
+            ])
+            or ".m3u8" in lower
+        )
+
+        if is_magnet or is_media_url:
             self.last_clipboard_text = text
-            self.showNormal()
-            self.activateWindow()
-            self.show_add_dialog(initial_url=text)
+            try:
+                from gui.quick_prompt_dialog import QuickPromptDialog
+                prompt = QuickPromptDialog(text, self)
+                prompt.download_requested.connect(self._handle_quick_download)
+                prompt.show()
+            except Exception:
+                self.showNormal()
+                self.activateWindow()
+                self.show_add_dialog(initial_url=text)
+
+    def _handle_quick_download(self, url: str, start_now: bool):
+        task = self.engine.create_download(url=url, auto_start=start_now)
+        self._load_table_data()
+        if start_now:
+            self.open_transfer_dialog(task)
 
     # ================= Table Loading & Rendering =================
     def _load_table_data(self):

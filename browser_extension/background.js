@@ -18,8 +18,17 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   let targetUrl = info.linkUrl || info.srcUrl;
   if (targetUrl) {
-    sendToPDownloader(targetUrl, tab ? tab.url : "");
+    sendToPDownloader(targetUrl, tab ? tab.url : "", tab ? tab.title : "");
   }
+});
+
+// In-Page Video Sniffer Message Receiver
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "video_detected" && message.url) {
+    sendToPDownloader(message.url, message.page_url || (sender.tab ? sender.tab.url : ""), message.title || "");
+    sendResponse({ status: "ok" });
+  }
+  return true;
 });
 
 // Intercept browser downloads and route to P-Downloader

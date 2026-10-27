@@ -5,22 +5,23 @@
 # P-Downloader (Pure Downloader)
 
 ### Ultra High-Performance Desktop Download Accelerator & Bandwidth Manager
-*A clean-room, open-source download accelerator built from scratch in Python and PyQt6.*
+*A clean-room, cross-platform open-source download accelerator built from scratch in Python and PyQt6.*
 
-[![CI](https://github.com/p-downloader/p-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/p-downloader/p-downloader/actions/workflows/ci.yml)
-[![Release](https://github.com/p-downloader/p-downloader/actions/workflows/release.yml/badge.svg)](https://github.com/p-downloader/p-downloader/actions/workflows/release.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/p-downloader/p-downloader?include_prereleases&style=flat-square&color=blue)](https://github.com/p-downloader/p-downloader/releases/latest)
+[![CI](https://github.com/pkgtm2419/p-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/pkgtm2419/p-downloader/actions/workflows/ci.yml)
+[![Release](https://github.com/pkgtm2419/p-downloader/actions/workflows/release.yml/badge.svg)](https://github.com/pkgtm2419/p-downloader/actions/workflows/release.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/pkgtm2419/p-downloader?include_prereleases&style=flat-square&color=blue)](https://github.com/pkgtm2419/p-downloader/releases/latest)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue?style=flat-square&logo=python)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=flat-square&logo=windows)](https://github.com/p-downloader/p-downloader/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6?style=flat-square)](https://github.com/pkgtm2419/p-downloader/releases)
 
-[**Download Windows Installer**](https://github.com/p-downloader/p-downloader/releases/latest) •
+[**Download Releases**](https://github.com/pkgtm2419/p-downloader/releases/latest) •
 [**Features**](#-features) •
-[**Quick Start**](#-quick-start) •
-[**Browser Integration**](#-browser-extension-integration) •
+[**Windows Installation**](#1-windows-installation) •
+[**Linux Installation**](#2-linux-installation-ubuntudebianfedoraarch) •
+[**macOS Installation**](#3-macos-installation) •
+[**Browser Integration**](#-browser-extension-integration-chrome-edge-brave-firefox) •
 [**CLI Mode**](#-cli-headless-mode) •
-[**Build from Source**](#-building-and-packaging) •
-[**GitHub Actions CI/CD**](#-automated-release-workflow-github-actions)
+[**Build from Source**](#-building-and-packaging)
 
 </div>
 
@@ -28,7 +29,7 @@
 
 ## ⚡ Overview
 
-**P-Downloader** is an open-source, full-featured desktop download manager and acceleration engine. Designed as a modern alternative to legacy download utilities like Internet Download Manager (IDM), P-Downloader saturates your internet connection through multi-connection chunking, automatic network interface bonding, dynamic pause/resume, and direct browser interception.
+**P-Downloader** is a modern, open-source desktop download manager and acceleration engine. Designed as a clean alternative to legacy utilities like Internet Download Manager (IDM), P-Downloader maximizes bandwidth utilization through dynamic chunking, multi-adapter network bonding, resume resilience, streaming HLS parsing, FFmpeg remuxing, video stream sniffing, and browser interception across Windows, Linux, and macOS.
 
 ---
 
@@ -37,6 +38,11 @@
 ### 🚀 High-Speed Multi-Connection Acceleration
 - **Dynamic Connection Slicing**: Splits files into up to **32 concurrent streams** using HTTP `Range` headers to bypass server-side single-connection throttling.
 - **Sparse File Pre-allocation**: Instantly reserves file capacity on disk, reducing fragmentation and eliminating write latency.
+
+### 🎬 In-Page Video Sniffer & HLS / DASH Streaming
+- **Browser Media Sniffing**: In-page floating download pill detects HTML5 video, streaming playlists, and audio tracks.
+- **HLS (.m3u8) Chunk Processor**: Downloads and concatenates fragmented live and VoD streaming video segments.
+- **FFmpeg Auto-Muxing**: Merges separated 1080p/4K video and high-bitrate audio streams into finished MP4/MKV files.
 
 ### 🌐 Multi-Network Bandwidth Aggregation (Bonding)
 - **Multi-Adapter Pooling**: Automatically detects all active network interfaces (e.g., Ethernet + Wi-Fi + 5G USB/Hotspot tethering).
@@ -54,15 +60,16 @@
 - **Domain Credentials Store**: Securely stores basic HTTP and Bearer token credentials for private repositories, corporate intranets, and authenticated file servers.
 - **Automatic Header Injection**: Matches target URLs to domain profiles and applies authentication automatically.
 
-### ⏱️ High-Precision Speed Limiter
+### ⏱️ High-Precision Speed Limiter & Multi-Queue Scheduler
 - **Token-Bucket Throttling**: Restrict transfer speeds from 100 KB/s up to Gigabit capacity so background downloads never disrupt gaming, VoIP, or video streaming.
+- **Timed Multi-Queue Scheduler**: Automate off-peak queues with automatic computer shutdown, sleep, or network disconnect.
 
 ### 🖥️ Native Desktop Experience & System Tray
 - **Modern Dark Interface**: Custom high-DPI desktop UI built with PyQt6.
 - **Floating Drop Target**: Drag-and-drop links or text onto an on-screen desktop drop target widget.
 - **Live Segment Visualizer**: Real-time progress bars showcasing individual download streams and network adapter allocations.
 - **Single-Instance IPC**: Running background instances accept new downloads instantly from the command line or browser extension.
-- **System Tray Execution**: Minimize to the Windows notification tray with completion balloon alerts.
+- **System Tray Execution**: Minimize to the system notification tray with completion alerts.
 
 ---
 
@@ -110,83 +117,168 @@
 
 ---
 
-## 📥 Downloads & Installation
+## 📥 Downloads & Official Releases
 
-You can get pre-compiled, virus-scanned binaries from the [**GitHub Releases**](https://github.com/p-downloader/p-downloader/releases/latest) page:
+You can download compiled release packages from the [**GitHub Releases**](https://github.com/pkgtm2419/p-downloader/releases/latest) page:
 
-| Package | Description | Recommended For |
+| Package File | Operating System | Description |
 | :--- | :--- | :--- |
-| **`P-Downloader-Setup-vX.Y.Z.exe`** | Standard Windows installer with desktop shortcut and start menu registration | General Windows users |
-| **`P-Downloader-vX.Y.Z-Portable.exe`** | Single-file portable executable, zero installation required | USB drives / Portable usage |
-| **`P-Downloader-vX.Y.Z-Windows-x64-Portable.zip`** | Standalone folder containing application and runtime assets | Portable environments |
-| **`pdownloader-browser-extension-vX.Y.Z.zip`** | Chrome / Edge Manifest V3 extension | Browser integration |
-| **`SHA256SUMS.txt`** | Cryptographic verification hashes for all release artifacts | Security verification |
+| **`P-Downloader-Setup-v1.0.0.exe`** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry |
+| **`P-Downloader-v1.0.0-Portable.exe`** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage |
+| **`P-Downloader-v1.0.0-Windows-x64-Portable.zip`** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries |
+| **`P-Downloader-v1.0.0-Linux-x64.tar.gz`** | **Linux** (x64) | Standalone Linux portable package (tarball) |
+| **`pdownloader-browser-extension-v1.0.0.zip`** | **All Platforms** | Chrome, Edge, Brave, and Firefox WebExtension |
+| **`SHA256SUMS.txt`** | **All Platforms** | Cryptographic verification checksums for every release file |
 
 ---
 
-## 🚀 Quick Start (Running from Source)
+## 📦 Complete Installation Guide (Every OS)
 
-### Prerequisites
-- **Python 3.10+** (Python 3.12 64-bit recommended)
-- **Windows 10 / 11** (Linux supported for core engine & headless CLI)
+### 1. Windows Installation
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/p-downloader/p-downloader.git
-cd p-downloader
-```
+#### Option A: Windows Setup Installer (Recommended)
+1. Download **`P-Downloader-Setup-v1.0.0.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+2. Run the installer wizard.
+3. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
-### 2. Create and Activate a Virtual Environment
+#### Option B: Portable Mode
+1. Download **`P-Downloader-v1.0.0-Portable.exe`** or extract **`P-Downloader-v1.0.0-Windows-x64-Portable.zip`**.
+2. Double-click `P-Downloader.exe` to run immediately without installation.
+
+#### Option C: Run from Source
 ```powershell
+# 1. Clone repository
+git clone https://github.com/pkgtm2419/p-downloader.git
+cd p-downloader
+
+# 2. Create virtual environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
 
-### 3. Install Dependencies
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Launch Application
-- **Double-click** `run_pdownloader.bat` or run:
-```bash
+# 4. Launch app
 python main.py
+# Or double-click: run_pdownloader.bat
 ```
 
 ---
 
-## 🌐 Browser Extension Integration
+### 2. Linux Installation (Ubuntu, Debian, Fedora, Arch)
 
-P-Downloader includes an official Manifest V3 browser extension for **Google Chrome**, **Microsoft Edge**, **Brave**, and **Chromium-based** browsers.
+#### Option A: Standalone Binary Package
+1. Download **`P-Downloader-v1.0.0-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+2. Extract the archive:
+   ```bash
+   tar -xvf P-Downloader-v1.0.0-Linux-x64.tar.gz
+   cd P-Downloader
+   ./P-Downloader
+   ```
 
-### 1. Register the Windows Native Messaging Host
-Run the automated registrar script from an elevated or user command prompt:
-```bash
-python browser_extension/installer.py
-```
-*This registers `com.pdownloader.host` in your Windows registry (`HKCU\Software\Google\Chrome\NativeMessagingHosts` and `HKCU\Software\Microsoft\Edge\NativeMessagingHosts`).*
+#### Option B: Run from Source on Linux
+1. **Install system dependencies**:
+   - **Ubuntu / Debian / Linux Mint**:
+     ```bash
+     sudo apt update
+     sudo apt install -y python3 python3-pip python3-venv libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 ffmpeg
+     ```
+   - **Fedora / RHEL**:
+     ```bash
+     sudo dnf install -y python3 python3-pip mesa-libGL mesa-libEGL libxkbcommon-x11 ffmpeg
+     ```
+   - **Arch Linux / Manjaro**:
+     ```bash
+     sudo pacman -S python python-pip libxkbcommon xcb-util-cursor ffmpeg
+     ```
 
-### 2. Load the WebExtension in Your Browser
-1. In your browser, navigate to:
-   - Chrome / Brave: `chrome://extensions`
-   - Microsoft Edge: `edge://extensions`
-2. Enable **Developer Mode** (top-right toggle).
-3. Click **Load unpacked**.
-4. Select the `browser_extension` folder inside this repository (or extract `pdownloader-browser-extension-vX.Y.Z.zip`).
-5. Right-click any downloadable link or file in your browser and choose **Download with P-Downloader**!
+2. **Clone and run**:
+   ```bash
+   git clone https://github.com/pkgtm2419/p-downloader.git
+   cd p-downloader
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ./run_pdownloader.sh
+   ```
+
+3. **Install Linux Desktop Icon & Launcher** (Optional):
+   ```bash
+   chmod +x run_pdownloader.sh
+   cp pdownloader.desktop ~/.local/share/applications/
+   ```
+
+---
+
+### 3. macOS Installation
+
+#### Option: Run from Source (macOS 12+ Monterey, Ventura, Sonoma, Sequoia)
+
+1. **Install Python 3 and FFmpeg** (via Homebrew):
+   ```bash
+   # Install Homebrew if not already installed (https://brew.sh)
+   brew install python@3.12 ffmpeg
+   ```
+
+2. **Clone and set up**:
+   ```bash
+   git clone https://github.com/pkgtm2419/p-downloader.git
+   cd p-downloader
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Launch**:
+   ```bash
+   ./run_pdownloader.sh
+   # Or directly:
+   python3 main.py
+   ```
+
+---
+
+## 🌐 Browser Extension Integration (Chrome, Edge, Brave, Firefox)
+
+P-Downloader includes an official Manifest V3 browser extension and a native messaging host bridge for instant browser interception and in-page video sniffing.
+
+### Step 1: Register Native Messaging Host
+Run the automated registrar script:
+- **Windows**:
+  ```cmd
+  python browser_extension\installer.py
+  ```
+- **Linux & macOS**:
+  ```bash
+  python3 browser_extension/installer.py
+  ```
+*This automatically registers `com.pdownloader.host` in your OS registry or browser manifest directories.*
+
+### Step 2: Load the WebExtension in Your Browser
+1. In your browser, open the extensions manager:
+   - **Chrome / Brave**: `chrome://extensions`
+   - **Microsoft Edge**: `edge://extensions`
+   - **Firefox**: `about:debugging#/runtime/this-firefox`
+2. Turn ON **Developer mode** (top-right toggle).
+3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.0.zip`).
+4. Select the `browser_extension` folder.
+5. You're ready! Right-click any downloadable link or click the floating video download pill on media pages.
 
 ---
 
 ## 💻 CLI (Headless Mode)
 
-P-Downloader includes a headless command-line interface suitable for scripts, remote servers, and automation:
+P-Downloader includes a headless command-line interface suitable for remote Linux servers, Docker containers, and automated cron pipelines:
 
 ```bash
 # Basic high-speed download (8 connections)
 python main.py --cli --url "https://example.com/archive.iso"
 
-# Ultra multi-connection download (32 parallel connections to specified location)
-python main.py --cli --url "https://example.com/dataset.zip" --connections 32 --output "D:\Datasets\dataset.zip"
+# Ultra multi-connection download (32 parallel connections to custom path)
+python main.py --cli --url "https://example.com/dataset.zip" --connections 32 --output "/data/dataset.zip"
+
+# Download a torrent or magnet link
+python main.py --cli --url "magnet:?xt=urn:btih:..."
 
 # Check version
 python main.py --version
@@ -195,159 +287,61 @@ python main.py --version
 ### Command-line Arguments
 | Argument | Description | Default |
 | :--- | :--- | :--- |
-| `--url <URL>` | Download target URL | `""` |
+| `--url <URL>` | Download target URL / Magnet URI | `""` |
 | `--connections <N>` | Number of concurrent connection segments (`1-32`) | `8` |
-| `--output <PATH>` | Custom destination file path | Default category folder |
+| `--output <PATH>` | Custom destination file path | Category default |
 | `--cli` | Run in headless console mode without GUI | `False` |
-| `--tray` / `--minimized`| Launch minimized directly into Windows System Tray | `False` |
+| `--tray` / `--minimized`| Launch minimized directly into System Tray | `False` |
 | `--version`, `-v` | Display application version and exit | - |
-
----
-
-## 📁 Project Structure
-
-```
-p-downloader/
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml                 # Continuous Integration test & build workflow
-│   │   └── release.yml            # Automated GitHub Release & installer packaging
-│   ├── ISSUE_TEMPLATE/            # Bug report & feature request templates
-│   └── PULL_REQUEST_TEMPLATE.md   # Pull request review checklist
-├── core/
-│   ├── __init__.py                # Version declaration (__version__ = "1.0.0")
-│   ├── categories.py              # Filetype categorization & download path resolution
-│   ├── credentials_manager.py     # Domain-specific HTTP authentication store
-│   ├── db.py                      # SQLite download queue persistence
-│   ├── engine.py                  # Download engine lifecycle manager
-│   ├── ipc.py                     # Single-instance cross-process communication
-│   ├── network_binder.py          # Multi-adapter interface bandwidth bonding
-│   ├── segment.py                 # Multi-segment HTTP Range engine & resume logic
-│   ├── speed_limiter.py           # Token-bucket rate throttler
-│   └── torrent.py                 # Bencode parser & Magnet URI resolver
-├── gui/
-│   ├── add_dialog.py              # "Add URL" dialog with automatic clipboard probe
-│   ├── batch_dialog.py            # Batch URL import dialog
-│   ├── download_dialog.py         # Live multi-stream transfer monitor
-│   ├── drop_target.py             # Floating desktop drag-and-drop link target
-│   ├── grabber_dialog.py          # Site grabber dialog
-│   ├── main_window.py             # Main application dashboard
-│   ├── refresh_dialog.py          # "Refresh Download Address" recovery dialog
-│   ├── scheduler_dialog.py        # Task scheduler dialog
-│   ├── settings_dialog.py         # User settings & network adapter manager
-│   ├── site_logins_dialog.py      # HTTP authentication manager dialog
-│   └── styles.py                  # High-DPI dark styles & metric formatters
-├── browser_extension/
-│   ├── background.js              # WebExtension service worker
-│   ├── installer.py               # Windows Registry Native Messaging registrar
-│   ├── manifest.json              # Manifest V3 extension configuration
-│   └── pdownloader_native_host.py  # Native messaging stdin/stdout bridge
-├── resources/                     # Icons, logos, and UI asset previews
-├── tests/
-│   ├── test_engine.py             # Unit tests for categories, DB, and segments
-│   ├── test_resume.py             # In-process HTTP Range pause/resume integration test
-│   └── test_ultra_downloader.py   # Unit tests for credentials, bonding, limiter, torrents
-├── build_installer.bat            # Automated local build script (PyInstaller + Inno Setup)
-├── installer.iss                  # Inno Setup 6 compiler configuration script
-├── main.py                        # Main executable entry point (GUI + CLI)
-├── pdownloader.spec               # PyInstaller directory distribution spec
-├── P-Downloader-Portable.spec      # PyInstaller standalone single-file spec
-├── requirements.txt               # Production dependencies
-├── requirements-dev.txt           # Development & testing dependencies
-├── run_pdownloader.bat            # Windows one-click desktop launcher
-└── LICENSE                        # MIT License
-```
 
 ---
 
 ## 🔨 Building and Packaging
 
-### 1. Compile with PyInstaller
-To build the standalone portable executable or folder bundle locally:
-```bash
+### 1. Windows PyInstaller & Inno Setup
+```cmd
 pip install -r requirements-dev.txt
 
-# Option A: Directory distribution (used by installer)
+# Directory distribution (used by installer)
 python -m PyInstaller --clean -y pdownloader.spec
 
-# Option B: Single-file portable executable
+# Single-file portable executable
 python -m PyInstaller --clean -y P-Downloader-Portable.spec
-```
-Outputs:
-- `dist/P-Downloader/` (Portable application directory)
-- `dist/P-Downloader-Portable.exe` (Single-file portable executable)
 
-### 2. Compile Windows Setup Installer (Inno Setup)
-Make sure [Inno Setup 6](https://jrsoftware.org/isdl.php) is installed, then run:
-```bat
-# Default build
-build_installer.bat
-
-# Or pass a custom version tag
+# Inno Setup Windows installer
 build_installer.bat 1.0.0
 ```
-Output:
-- `Output\P-Downloader-Setup.exe`
+
+### 2. Linux Standalone Bundle
+```bash
+pip install -r requirements-dev.txt
+python3 -m PyInstaller --clean -y pdownloader.spec
+tar -czvf P-Downloader-v1.0.0-Linux-x64.tar.gz -C dist P-Downloader
+```
 
 ---
 
-## 🤖 Automated Release Workflow (GitHub Actions)
+## 🤖 GitHub Actions Automated Releases
 
-This repository includes a production-grade CI/CD pipeline powered by GitHub Actions:
+When a version tag is pushed (e.g. `v1.0.0`), the [`.github/workflows/release.yml`](.github/workflows/release.yml) workflow automatically:
+1. Runs all 23 unit & integration test suites.
+2. Compiles the Windows Setup `.exe`, portable `.exe`, and portable `.zip`.
+3. Compiles the Linux standalone portable package `.tar.gz`.
+4. Bundles the Chrome/Edge WebExtension `.zip`.
+5. Computes SHA-256 hashes in `SHA256SUMS.txt`.
+6. Publishes the release on GitHub with release notes.
 
-### 1. Continuous Integration (`ci.yml`)
-- Automatically runs on every push and pull request to `master` and `main`.
-- Tests across **Python 3.10, 3.11, and 3.12** on both **Windows** and **Ubuntu**.
-- Runs linting and static analysis with `flake8`.
-- Executes 100% of unit and integration test suites.
-- Performs a build verification dry run on Windows runners.
-
-### 2. Automated Release & Installer Generation (`release.yml`)
-Releases can be generated and published automatically in two ways:
-
-#### A. By Git Tag (Recommended)
-Tag your commit and push it to GitHub:
-```bash
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
-```
-
-#### B. Via GitHub Actions Web UI (`workflow_dispatch`)
-1. Go to the **Actions** tab on your GitHub repository.
-2. Select the **Release** workflow from the left sidebar.
-3. Click **Run workflow**, optionally specify a version (e.g. `1.0.0`), and click **Run**.
-
-**What the Release Action Does Automatically:**
-1. Checks out the code and sets up Python 3.12.
-2. Runs the full test suite.
-3. Installs Inno Setup via Chocolatey.
-4. Compiles the PyInstaller directory distribution (`dist/P-Downloader`).
-5. Compiles the PyInstaller standalone single-file binary (`dist/P-Downloader-Portable.exe`).
-6. Injects the version number and compiles `Output\P-Downloader-Setup.exe`.
-7. Bundles the portable directory into `P-Downloader-vX.Y.Z-Windows-x64-Portable.zip`.
-8. Packages the Chrome/Edge WebExtension into `pdownloader-browser-extension-vX.Y.Z.zip`.
-9. Calculates SHA-256 hashes and generates `SHA256SUMS.txt`.
-10. Publishes a new GitHub Release with release notes and attaches all binary artifacts.
+To trigger a release manually:
+1. Go to **Actions** → **Release** in your GitHub repository.
+2. Click **Run workflow**, specify the version (e.g. `1.0.0`), and run.
 
 ---
 
 ## 🛡️ Security & Privacy
 
-- **Clean-room Codebase**: Zero proprietary, closed-source, or telemetry libraries.
-- **Local Data Only**: All download records and credentials are stored strictly on your local machine in an SQLite database at `~/.pdownloader/downloads.db`.
-- **Pre-flight CI Checks**: Secrets, environment files, `.pem` certificates, and sensitive credentials are barred by a comprehensive `.gitignore` configuration.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcomed!
-1. Fork this repository.
-2. Create a feature branch (`git checkout -b feature/awesome-feature`).
-3. Commit your changes (`git commit -m "Add awesome feature"`).
-4. Run tests: `python -m unittest discover tests` to ensure everything passes.
-5. Push to the branch (`git push origin feature/awesome-feature`).
-6. Open a **Pull Request**.
+- **Clean-room Codebase**: Zero telemetry, tracking, or adware.
+- **Local Storage Only**: All credentials and download logs stay on your local disk at `~/.pdownloader/downloads.db`.
+- **Pre-flight CI Security**: Barred by `.gitignore` against accidental credential/environment leakage.
 
 ---
 

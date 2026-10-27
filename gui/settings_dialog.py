@@ -53,11 +53,13 @@ class SettingsDialog(QDialog):
         self.chk_clipboard = QCheckBox("Automatically capture download links copied to Clipboard")
         self.chk_show_dlg = QCheckBox("Show download transfer progress window automatically")
         self.chk_tray = QCheckBox("Minimize to system tray on close")
+        self.chk_av = QCheckBox("Scan completed downloads with Windows Defender automatically")
 
         start_vbox.addWidget(self.chk_startup)
         start_vbox.addWidget(self.chk_clipboard)
         start_vbox.addWidget(self.chk_show_dlg)
         start_vbox.addWidget(self.chk_tray)
+        start_vbox.addWidget(self.chk_av)
         gen_vbox.addWidget(grp_start)
 
         grp_types = QGroupBox("Automatically Start Downloading the Following File Types")
@@ -327,6 +329,7 @@ class SettingsDialog(QDialog):
         self.chk_clipboard.setChecked(self.db.get_setting("clipboard_monitor", "1") == "1")
         self.chk_show_dlg.setChecked(self.db.get_setting("show_dlg", "1") == "1")
         self.chk_tray.setChecked(self.db.get_setting("minimize_tray", "1") == "1")
+        self.chk_av.setChecked(self.db.get_setting("antivirus_enabled", "1") == "1")
         self.txt_file_types.setText(self.db.get_setting("auto_file_types", DEFAULT_AUTO_FILE_TYPES))
         self.txt_exceptions.setText(self.db.get_setting("exception_sites", ""))
 
@@ -373,6 +376,7 @@ class SettingsDialog(QDialog):
         self.db.set_setting("clipboard_monitor", "1" if self.chk_clipboard.isChecked() else "0")
         self.db.set_setting("show_dlg", "1" if self.chk_show_dlg.isChecked() else "0")
         self.db.set_setting("minimize_tray", "1" if self.chk_tray.isChecked() else "0")
+        self.db.set_setting("antivirus_enabled", "1" if self.chk_av.isChecked() else "0")
         self.db.set_setting("auto_file_types", self.txt_file_types.text().strip())
         self.db.set_setting("exception_sites", self.txt_exceptions.text().strip())
 

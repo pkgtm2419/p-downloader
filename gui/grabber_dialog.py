@@ -1,18 +1,18 @@
 """
 Site Grabber and Media Sniffer Dialog (IDM Feature).
-Crawls a webpage, discovers downloadable media/files, and batch enqueues them.
+Crawls a webpage recursively, discovers downloadable media/files, and batch enqueues them.
 """
 import re
 import os
-import requests
 import threading
 from urllib.parse import urljoin, urlparse
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
-    QCheckBox, QGroupBox, QMessageBox
+    QCheckBox, QGroupBox, QMessageBox, QSpinBox, QProgressBar
 )
 from PyQt6.QtCore import pyqtSignal, Qt
+from core.spider import WebSpider
 
 MEDIA_EXTS = {
     "video": [".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".ts", ".m4v"],
@@ -52,8 +52,8 @@ class GrabberDialog(QDialog):
         url_layout.addWidget(self.btn_crawl)
         layout.addWidget(grp_url)
 
-        # Filters
-        grp_filters = QGroupBox("Media Filters")
+        # Filters & Depth
+        grp_filters = QGroupBox("Media Filters & Crawl Settings")
         f_layout = QHBoxLayout(grp_filters)
         self.chk_vid = QCheckBox("Videos")
         self.chk_vid.setChecked(True)
@@ -70,8 +70,21 @@ class GrabberDialog(QDialog):
         f_layout.addWidget(self.chk_doc)
         f_layout.addWidget(self.chk_arc)
         f_layout.addWidget(self.chk_img)
+
+        f_layout.addSpacing(20)
+        f_layout.addWidget(QLabel("Crawl Depth:"))
+        self.spin_depth = QSpinBox()
+        self.spin_depth.setRange(1, 3)
+        self.spin_depth.setValue(1)
+        self.spin_depth.setToolTip("1 = Current page only; 2 = Follow links on page; 3 = 2 levels deep")
+        f_layout.addWidget(self.spin_depth)
+
         f_layout.addStretch()
         layout.addWidget(grp_filters)
+
+        self.lbl_status = QLabel("Ready to explore.")
+        self.lbl_status.setStyleSheet("color: #8E9297; font-size: 11px;")
+        layout.addWidget(self.lbl_status)
 
         # Discovered Table
         self.table = QTableWidget()
@@ -111,36 +124,23 @@ class GrabberDialog(QDialog):
             return
         self.btn_crawl.setEnabled(False)
         self.table.setRowCount(0)
+        self.lbl_status.setText(f"Crawling {page_url}...")
 
-        # Determine target extensions
-        target_exts = set()
-        if self.chk_vid.isChecked(): target_exts.update(MEDIA_EXTS["video"])
-        if self.chk_aud.isChecked(): target_exts.update(MEDIA_EXTS["audio"])
-        if self.chk_doc.isChecked(): target_exts.update(MEDIA_EXTS["documents"])
-        if self.chk_arc.isChecked(): target_exts.update(MEDIA_EXTS["archives"])
-        if self.chk_img.isChecked(): target_exts.update(MEDIA_EXTS["images"])
+        cats = []
+        if self.chk_vid.isChecked(): cats.append("video")
+        if self.chk_aud.isChecked(): cats.append("audio")
+        if self.chk_doc.isChecked(): cats.append("documents")
+        if self.chk_arc.isChecked(): cats.append("archives")
+        if self.chk_img.isChecked(): cats.append("images")
+
+        depth = self.spin_depth.value()
 
         def worker():
             try:
-                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-                resp = requests.get(page_url, headers=headers, timeout=12)
-                html = resp.text
-
-                # Find all href and src
-                raw_links = re.findall(r'(?:href|src)=["\']([^"\']+)["\']', html, re.IGNORECASE)
-                items = []
-                seen = set()
-
-                for link in raw_links:
-                    full_url = urljoin(page_url, link)
-                    path = urlparse(full_url).path
-                    ext = os.path.splitext(path)[1].lower()
-
-                    if ext in target_exts and full_url not in seen:
-                        seen.add(full_url)
-                        fn = os.path.basename(path)
-                        items.append({"filename": fn, "url": full_url, "type": ext.lstrip(".").upper()})
-
+                spider = WebSpider(start_url=page_url, max_depth=depth, target_categories=cats)
+                items = spider.crawl(
+                    progress_callback=lambda p, c: None
+                )
                 self.crawl_finished.emit(items)
             except Exception as e:
                 self.crawl_failed.emit(str(e))
@@ -149,6 +149,7 @@ class GrabberDialog(QDialog):
 
     def _on_crawl_success(self, items):
         self.btn_crawl.setEnabled(True)
+        self.lbl_status.setText(f"Found {len(items)} downloadable items.")
         self.discovered_items = items
         self.table.setRowCount(len(items))
 

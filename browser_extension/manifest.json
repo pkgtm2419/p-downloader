@@ -1,19 +1,31 @@
 {
   "manifest_version": 3,
   "name": "P-Downloader Integration Module",
-  "version": "1.0.0",
-  "description": "Intercepts downloads and routes them directly to P-Downloader for maximum multi-threaded acceleration.",
+  "version": "2.0.0",
+  "description": "Ultra download accelerator with in-page video sniffer, HLS streaming capture, and multi-threaded parallel downloads.",
   "permissions": [
     "downloads",
     "contextMenus",
     "nativeMessaging",
     "storage",
-    "notifications"
+    "notifications",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["video_sniffer.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
   "action": {
-    "default_title": "P-Downloader Active"
+    "default_title": "P-Downloader Ultra Active"
   }
 }
