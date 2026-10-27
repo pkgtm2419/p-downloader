@@ -52,6 +52,22 @@ class Segment:
         return seg
 
 def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    # Check if YouTube URL and probe with yt-dlp
+    try:
+        from core.youtube_downloader import is_youtube_url, probe_youtube
+        if is_youtube_url(url):
+            yt_info = probe_youtube(url)
+            return {
+                "url": url,
+                "final_url": url,
+                "filename": yt_info.get("filename", "YouTube_Video.mp4"),
+                "total_bytes": yt_info.get("total_bytes", 0),
+                "supports_range": True,
+                "is_youtube": True
+            }
+    except Exception:
+        pass
+
     req_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "*/*"

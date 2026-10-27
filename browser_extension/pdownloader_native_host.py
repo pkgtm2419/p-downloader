@@ -91,6 +91,8 @@ def main():
                 payload = {
                     "action": "download",
                     "url": url,
+                    "pageUrl": msg.get("pageUrl"),
+                    "quality": msg.get("quality"),
                     "filename": filename,
                     "referer": referer,
                     "requestHeaders": msg.get("requestHeaders"),

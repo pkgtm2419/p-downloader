@@ -76,9 +76,29 @@ class MainWindow(QMainWindow):
         self._load_table_data()
 
     def closeEvent(self, event):
+        if not getattr(self, "_force_quit", False):
+            event.ignore()
+            self.hide()
+            if hasattr(self, "tray") and self.tray.isVisible():
+                if not getattr(self, "_tray_notified", False):
+                    self._tray_notified = True
+                    self.tray.showMessage(
+                        "P-Downloader",
+                        "Application minimized to tray. Click the tray icon to restore.",
+                        QSystemTrayIcon.MessageIcon.Information,
+                        2000
+                    )
+            return
+
         if hasattr(self, "scheduler"):
             self.scheduler.stop()
         event.accept()
+
+    def _exit_app(self):
+        self._force_quit = True
+        if hasattr(self, "scheduler"):
+            self.scheduler.stop()
+        QApplication.instance().quit()
 
     def _init_menu_and_toolbar(self):
         menubar = self.menuBar()
@@ -118,7 +138,7 @@ class MainWindow(QMainWindow):
 
         act_exit = QAction("E&xit", self)
         act_exit.setShortcut("Alt+F4")
-        act_exit.triggered.connect(self.close)
+        act_exit.triggered.connect(self._exit_app)
         menu_tasks.addAction(act_exit)
 
         # ================= File Menu =================
@@ -428,16 +448,20 @@ class MainWindow(QMainWindow):
         tray_menu.addSeparator()
 
         act_quit = tray_menu.addAction("Exit P-Downloader")
-        act_quit.triggered.connect(QApplication.instance().quit)
+        act_quit.triggered.connect(self._exit_app)
 
         self.tray.setContextMenu(tray_menu)
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
 
     def _on_tray_activated(self, reason):
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self.showNormal()
-            self.activateWindow()
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            if self.isVisible() and not self.isMinimized():
+                self.hide()
+            else:
+                self.showNormal()
+                self.activateWindow()
+                self.raise_()
 
     # ================= Dialog Invocations =================
     def show_add_dialog(
@@ -446,7 +470,9 @@ class MainWindow(QMainWindow):
         initial_filename: str = "",
         referer: str = "",
         headers: dict = None,
-        start_now: bool = False
+        start_now: bool = False,
+        page_url: str = "",
+        quality: str = ""
     ):
         # Check if URL is an HLS master playlist with selectable qualities
         if initial_url and ".m3u8" in initial_url.lower():
@@ -479,13 +505,27 @@ class MainWindow(QMainWindow):
 
         if start_now and initial_url:
             fn = initial_filename or None
-            task = self.engine.create_download(url=initial_url, filename=fn, auto_start=True)
+            task = self.engine.create_download(
+                url=initial_url,
+                filename=fn,
+                auto_start=True,
+                page_url=page_url,
+                quality=quality
+            )
             self._load_table_data()
             if self.engine.db.get_setting("show_dlg", "1") == "1":
                 self.open_transfer_dialog(task)
             return
 
-        dlg = AddDownloadDialog(self, initial_url=initial_url, initial_filename=initial_filename)
+        dlg = AddDownloadDialog(
+            self,
+            initial_url=initial_url,
+            initial_filename=initial_filename,
+            page_url=page_url,
+            quality=quality,
+            headers=headers,
+            referer=referer
+        )
         if dlg.exec():
             res = dlg.get_result()
             task = self.engine.create_download(
@@ -494,7 +534,9 @@ class MainWindow(QMainWindow):
                 save_path=res["save_path"],
                 category=res["category"],
                 connections=res["connections"],
-                auto_start=res["auto_start"]
+                auto_start=res["auto_start"],
+                page_url=res.get("page_url"),
+                quality=res.get("quality")
             )
             self._load_table_data()
             if res["auto_start"] and self.engine.db.get_setting("show_dlg", "1") == "1":

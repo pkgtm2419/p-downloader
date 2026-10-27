@@ -20,7 +20,16 @@ class AddDownloadDialog(QDialog):
     probe_finished = pyqtSignal(dict)
     probe_failed = pyqtSignal(str)
 
-    def __init__(self, parent=None, initial_url: str = "", initial_filename: str = ""):
+    def __init__(
+        self,
+        parent=None,
+        initial_url: str = "",
+        initial_filename: str = "",
+        page_url: str = "",
+        quality: str = "",
+        headers: dict = None,
+        referer: str = ""
+    ):
         super().__init__(parent)
         self.setWindowTitle("Enter New Download Address")
         self.resize(520, 320)
@@ -31,6 +40,12 @@ class AddDownloadDialog(QDialog):
         
         self.initial_url = initial_url
         self.initial_filename = initial_filename
+        self.page_url = page_url
+        self.quality = quality
+        self.headers = headers or {}
+        if referer and "Referer" not in self.headers and "referer" not in self.headers:
+            self.headers["Referer"] = referer
+        self.referer = referer
         self.probed_info = None
 
         self.probe_finished.connect(self._on_probe_success)
@@ -190,7 +205,8 @@ class AddDownloadDialog(QDialog):
                     }
                     self.probe_finished.emit(info)
                 else:
-                    info = probe_url(url)
+                    target_to_probe = self.page_url if (self.page_url and ("youtube.com" in self.page_url or "youtu.be" in self.page_url)) else url
+                    info = probe_url(target_to_probe, headers=self.headers)
                     self.probe_finished.emit(info)
             except Exception as e:
                 self.probe_failed.emit(str(e))
@@ -200,16 +216,22 @@ class AddDownloadDialog(QDialog):
     def _on_probe_success(self, info: dict):
         self.btn_probe.setEnabled(True)
         self.probed_info = info
-        self.txt_filename.setText(info["filename"])
+        curr = self.txt_filename.text().strip()
+        # Keep custom or initial filename if already meaningful
+        if not self.initial_filename and (not curr or curr in ("download", "videoplayback")):
+            self.txt_filename.setText(info.get("filename") or "download")
+        elif curr in ("download", "videoplayback") and info.get("filename") and info["filename"] not in ("download", "videoplayback"):
+            self.txt_filename.setText(info["filename"])
         
-        cat = get_category_for_filename(info["filename"])
+        final_fn = self.txt_filename.text().strip() or info.get("filename", "download")
+        cat = get_category_for_filename(final_fn)
         self.cmb_category.setCurrentText(cat)
         
-        default_dir = os.path.dirname(get_default_save_path(info["filename"], cat))
+        default_dir = os.path.dirname(get_default_save_path(final_fn, cat))
         self.txt_save_dir.setText(default_dir)
 
-        size_text = format_bytes(info["total_bytes"]) if info["total_bytes"] > 0 else "Unknown (Dynamic Stream)"
-        range_text = "Supported (Fast 8-32 connections)" if info["supports_range"] else "Not Supported (Single connection)"
+        size_text = format_bytes(info["total_bytes"]) if info.get("total_bytes", 0) > 0 else "Unknown (Dynamic Stream)"
+        range_text = "Supported (Fast 8-32 connections)" if info.get("supports_range") else "Not Supported (Single connection)"
         self.lbl_info.setText(f"File Size: <b>{size_text}</b> | Resume: <b>{range_text}</b>")
 
     def _on_probe_error(self, err: str):
@@ -256,5 +278,7 @@ class AddDownloadDialog(QDialog):
             "save_path": os.path.join(save_dir, fn),
             "category": self.cmb_category.currentText(),
             "connections": self.spin_connections.value(),
-            "auto_start": (self.action == "now")
+            "auto_start": (self.action == "now"),
+            "page_url": self.page_url,
+            "quality": self.quality
         }

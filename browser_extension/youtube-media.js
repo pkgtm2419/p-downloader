@@ -57,12 +57,11 @@
   }
   function choices(data, observed = []) {
     if (!data) return [];
+    const pageUrl = 'https://www.youtube.com/watch?v=' + data.videoId;
     const formats = data.formats.map(f => {
       const source=f.sourceUrl && new URL(f.sourceUrl);
       const match=source && observed.find(raw => { try{const u=new URL(raw);return u.searchParams.get('itag')===String(f.itag) && !!source.searchParams.get('id') && u.searchParams.get('id')===source.searchParams.get('id');}catch{return false;} });
-      // With SABR available, metadata-only direct URLs can be unusable (403).
-      // Prefer SABR unless this exact asset/itag was observed succeeding.
-      return {...f,url:match || (data.sabrUrl&&data.ustreamerConfig?null:f.url)};
+      return {...f,url:match || f.url || f.sourceUrl};
     }).filter(f=>f.url && (!new URL(f.url).searchParams.has('expire') || Number(new URL(f.url).searchParams.get('expire'))*1000>Date.now()+30000));
     const result=[], seen=new Set();
     const title=data.title.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,170);
@@ -70,17 +69,17 @@
     for(const f of formats.filter(f=>/^video\/mp4/i.test(f.mimeType)&&f.height).sort((a,b)=>b.height-a.height||b.fps-a.fps||b.bitrate-a.bitrate)){
       const muxed=f.audioQuality||/mp4a/i.test(f.mimeType);if(!muxed&&!audio)continue;
       const key=f.height+':'+f.fps;if(seen.has(key))continue;seen.add(key);
-      result.push({url:f.url,audioUrl:muxed?undefined:audio.url,provider:'youtube',format:'MP4',outputFormat:'mp4',quality:f.height+'p'+(f.fps>30?' '+f.fps+'fps':''),audioState:'Video + audio',title:data.title,filename:title+'.mp4',bitrate:f.bitrate});
+      result.push({url:f.url||pageUrl,pageUrl,videoId:data.videoId,audioUrl:muxed?undefined:audio?.url,provider:'youtube',format:'MP4',outputFormat:'mp4',quality:f.height+'p'+(f.fps>30?' '+f.fps+'fps':''),audioState:'Video + audio',title:data.title,filename:title+'.mp4',bitrate:f.bitrate});
     }
-    if(audio)result.push({url:audio.url,provider:'youtube',format:'MP3',outputFormat:'mp3',quality:'Audio',audioState:'Audio only',title:data.title,filename:title+'.mp3'});
-    if(!data.sabrUrl||!data.ustreamerConfig)return result;
+    if(audio)result.push({url:audio.url||pageUrl,pageUrl,videoId:data.videoId,provider:'youtube',format:'MP3',outputFormat:'mp3',quality:'Audio',audioState:'Audio only',title:data.title,filename:title+'.mp3'});
+    
+    // Also include adaptive streams using pageUrl so P-Downloader can fetch them directly
     const sabrAudio=data.formats.filter(f=>/^audio\/mp4/i.test(f.mimeType)&&(!f.audioTrack||f.audioTrack.audioIsDefault)&&!f.isDrc&&!f.isVb).sort((a,b)=>b.bitrate-a.bitrate)[0];
-    if(!sabrAudio)return result;
     for(const f of data.formats.filter(f=>/^video\/mp4/i.test(f.mimeType)&&f.height&&!f.audioQuality&&!/mp4a/i.test(f.mimeType)).sort((a,b)=>b.height-a.height||b.fps-a.fps||b.bitrate-a.bitrate)){
       const key=f.height+':'+f.fps;if(seen.has(key))continue;seen.add(key);
-      result.push({url:data.sabrUrl,provider:'youtube',format:'MP4',outputFormat:'mp4',quality:f.height+'p'+(f.fps>30?' '+f.fps+'fps':''),audioState:'Video + audio',title:data.title,filename:title+'.mp4',bitrate:f.bitrate,sabrSelection:{videoItag:f.itag,audioItag:sabrAudio.itag}});
+      result.push({url:f.url||pageUrl,pageUrl,videoId:data.videoId,provider:'youtube',format:'MP4',outputFormat:'mp4',quality:f.height+'p'+(f.fps>30?' '+f.fps+'fps':''),audioState:'Video + audio',title:data.title,filename:title+'.mp4',bitrate:f.bitrate,sabrSelection:{videoItag:f.itag,audioItag:sabrAudio?.itag}});
     }
-    if(!result.some(item=>item.format==='MP3'))result.push({url:data.sabrUrl,provider:'youtube',format:'MP3',outputFormat:'mp3',quality:'Audio',audioState:'Audio only',title:data.title,filename:title+'.mp3',bitrate:sabrAudio.bitrate,sabrSelection:{audioItag:sabrAudio.itag}});
+    if(!result.some(item=>item.format==='MP3'))result.push({url:pageUrl,pageUrl,videoId:data.videoId,provider:'youtube',format:'MP3',outputFormat:'mp3',quality:'Audio',audioState:'Audio only',title:data.title,filename:title+'.mp3',bitrate:sabrAudio?.bitrate,sabrSelection:{audioItag:sabrAudio?.itag}});
     return result;
   }
   root.youtubeMedia={mediaUrl,sabrUrl,playerData,sanitizePlayer,choices};

@@ -16,7 +16,8 @@ a = Analysis(
         'PyQt6.QtWidgets',
         'requests',
         'aiohttp',
-        'cryptography'
+        'cryptography',
+        'yt_dlp'
     ],
     hookspath=[],
     hooksconfig={},

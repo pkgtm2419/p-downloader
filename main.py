@@ -68,6 +68,7 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
     app = QApplication(sys.argv)
     app.setApplicationName("P-Downloader")
     app.setOrganizationName("PDownloader")
+    app.setQuitOnLastWindowClosed(False)
 
     icon_path = os.path.join(os.path.dirname(__file__), "resources", "logo.ico")
     if not os.path.exists(icon_path):
@@ -84,11 +85,15 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
         url = msg.get("url")
         if action in ("download", "add_download") and url:
             fn = msg.get("filename", "")
+            page_url = msg.get("pageUrl", "")
+            quality = msg.get("quality", "")
             ref = msg.get("referer", "")
             hdrs = msg.get("requestHeaders") or {}
             start_now = msg.get("startNow", False)
-            QTimer.singleShot(0, lambda u=url, f=fn, r=ref, h=hdrs, s=start_now: window.show_add_dialog(
+            QTimer.singleShot(0, lambda u=url, p=page_url, q=quality, f=fn, r=ref, h=hdrs, s=start_now: window.show_add_dialog(
                 initial_url=u,
+                page_url=p,
+                quality=q,
                 initial_filename=f,
                 referer=r,
                 headers=h,

@@ -31,11 +31,17 @@ class DownloadEngine:
         save_path: Optional[str] = None,
         category: Optional[str] = None,
         connections: int = 8,
-        auto_start: bool = True
+        auto_start: bool = True,
+        page_url: Optional[str] = None,
+        quality: Optional[str] = None
     ) -> DownloadTask:
+        # Check YouTube URL
+        from core.youtube_downloader import is_youtube_url
+        is_yt = is_youtube_url(url) or (page_url and is_youtube_url(page_url))
+
         # Probe metadata if filename/save_path not specified
         if not filename or not save_path:
-            info = probe_url(url)
+            info = probe_url(page_url if (page_url and is_yt) else url)
             if not filename:
                 filename = info["filename"]
             if not category:
@@ -45,8 +51,22 @@ class DownloadEngine:
 
         task_id = str(uuid.uuid4())[:8]
 
+        # Automatic YouTube routing
+        if is_yt:
+            from core.youtube_downloader import YouTubeDownloadTask
+            task = YouTubeDownloadTask(
+                task_id=task_id,
+                url=url,
+                save_path=save_path,
+                page_url=page_url,
+                quality=quality,
+                connections=connections,
+                on_progress=self._on_task_progress,
+                on_complete=self._on_task_complete,
+                on_error=self._on_task_error
+            )
         # Automatic HLS / M3U8 routing
-        if ".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8")):
+        elif ".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8")):
             from core.hls_downloader import HLSDownloadTask
             # Ensure target filename is .mp4
             if save_path.lower().endswith(".m3u8"):
