@@ -112,7 +112,11 @@ def main():
 
                 send_message({"status": "success", "message": "Download routed to P-Downloader Ultra"})
             elif action == "ping":
-                send_message({"status": "pong", "app": "P-Downloader", "version": "2.0.0"})
+                try:
+                    from core import __version__ as app_version
+                except Exception:
+                    app_version = "1.0.1"
+                send_message({"status": "pong", "app": "P-Downloader", "version": app_version})
             else:
                 send_message({"status": "error", "message": f"Unknown action: {action}"})
 

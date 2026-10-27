@@ -122,11 +122,11 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 
 | Package File | Operating System | Description |
 | :--- | :--- | :--- |
-| **`P-Downloader-Setup-v1.0.0.exe`** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry |
-| **`P-Downloader-v1.0.0-Portable.exe`** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage |
-| **`P-Downloader-v1.0.0-Windows-x64-Portable.zip`** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries |
-| **`P-Downloader-v1.0.0-Linux-x64.tar.gz`** | **Linux** (x64) | Standalone Linux portable package (tarball) |
-| **`pdownloader-browser-extension-v1.0.0.zip`** | **All Platforms** | Chrome, Edge, Brave, and Firefox WebExtension |
+| **`P-Downloader-Setup-v1.0.1.exe`** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry |
+| **`P-Downloader-v1.0.1-Portable.exe`** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage |
+| **`P-Downloader-v1.0.1-Windows-x64-Portable.zip`** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries |
+| **`P-Downloader-v1.0.1-Linux-x64.tar.gz`** | **Linux** (x64) | Standalone Linux portable package (tarball) |
+| **`pdownloader-browser-extension-v1.0.1.zip`** | **All Platforms** | Chrome, Edge, Brave, and Firefox WebExtension |
 | **`SHA256SUMS.txt`** | **All Platforms** | Cryptographic verification checksums for every release file |
 
 ---
@@ -136,13 +136,13 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 ### 1. Windows Installation
 
 #### Option A: Windows Setup Installer (Recommended)
-1. Download **`P-Downloader-Setup-v1.0.0.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-Setup-v1.0.1.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to seamlessly upgrade (preserving your history and settings) or perform a clean reinstall.
 3. The installer automatically registers native messaging host integration for Chrome, Edge, Brave, Chromium, and Firefox.
 4. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
 #### Option B: Portable Mode
-1. Download **`P-Downloader-v1.0.0-Portable.exe`** or extract **`P-Downloader-v1.0.0-Windows-x64-Portable.zip`**.
+1. Download **`P-Downloader-v1.0.1-Portable.exe`** or extract **`P-Downloader-v1.0.1-Windows-x64-Portable.zip`**.
 2. Double-click `P-Downloader.exe` to run immediately without installation.
 
 #### Option C: Run from Source
@@ -168,10 +168,10 @@ python main.py
 ### 2. Linux Installation (Ubuntu, Debian, Fedora, Arch)
 
 #### Option A: Standalone Binary Package
-1. Download **`P-Downloader-v1.0.0-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-v1.0.1-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Extract the archive:
    ```bash
-   tar -xvf P-Downloader-v1.0.0-Linux-x64.tar.gz
+   tar -xvf P-Downloader-v1.0.1-Linux-x64.tar.gz
    cd P-Downloader
    ./P-Downloader
    ```
@@ -260,7 +260,7 @@ Run the automated registrar script:
    - **Microsoft Edge**: `edge://extensions`
    - **Firefox**: `about:debugging#/runtime/this-firefox`
 2. Turn ON **Developer mode** (top-right toggle).
-3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.0.zip`).
+3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.1.zip`).
 4. Select the `browser_extension` folder.
 5. You're ready! Right-click any downloadable link or click the floating video download pill on media pages.
 
@@ -309,14 +309,14 @@ python -m PyInstaller --clean -y pdownloader.spec
 python -m PyInstaller --clean -y P-Downloader-Portable.spec
 
 # Inno Setup Windows installer
-build_installer.bat 1.0.0
+build_installer.bat 1.0.1
 ```
 
 ### 2. Linux Standalone Bundle
 ```bash
 pip install -r requirements-dev.txt
 python3 -m PyInstaller --clean -y pdownloader.spec
-tar -czvf P-Downloader-v1.0.0-Linux-x64.tar.gz -C dist P-Downloader
+tar -czvf P-Downloader-v1.0.1-Linux-x64.tar.gz -C dist P-Downloader
 ```
 
 ---

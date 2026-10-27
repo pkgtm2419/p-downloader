@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QAction, QIcon, QCursor, QColor, QFont, QPixmap
 from PyQt6.QtCore import Qt, QTimer
 
+from core import __version__
 from core.engine import DownloadEngine
 from core.segment import DownloadTask
 from core.network_binder import NetworkManager
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
         self.active_dialogs = {}
         self.last_clipboard_text = ""
 
-        self.setWindowTitle("P-Downloader - Pure Download Accelerator (v1.0.0)")
+        self.setWindowTitle(f"P-Downloader - Pure Download Accelerator (v{__version__})")
         self.resize(1150, 680)
         self.setStyleSheet(MAIN_STYLESHEET)
 
@@ -926,7 +927,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self, "About P-Downloader",
             "<h2>P-Downloader (Pure Downloader)</h2>"
-            "<p><b>Version 1.0.0 (High-Speed Acceleration Engine)</b></p>"
+            f"<p><b>Version {__version__} (High-Speed Acceleration Engine)</b></p>"
             "<p>A modern, clean-room download manager built from scratch with Python & PyQt6.</p>"
             "<hr>"
             "<p><b>Key Capabilities:</b></p>"
