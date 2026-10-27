@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "P-Downloader Integration Module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Ultra download accelerator with in-page video sniffer, HLS streaming capture, YouTube stream capture, and multi-threaded parallel downloads.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuDebSQMP0qRPsA9qDJPxbxZmORe/wTtJ71z19+3ZweZ4PWLVOqDobfAaKG98vunOvu3FFneolsFLyZVlhoSJM5IY1uug0qddIdfBOM2+HmkGF4PkVboD/pHQQpZAKA+3mG/CQ7Fa53Z1PdDRsz0XbS4SxMapUYvRe7DHD4nUbr5dMNdFv3nNwwxeikla7t//VFgLliqFDsCKl34uyEYG4ndiS+1hBuwn5BdYwEzsB76tMCo/KEIUTDJGbGH2+fZu5XXiW8r7wxhJCYG9wHbAOFfTDQSUrSZKPzISp5Wkb666HBj94Hw5iz7i7HnNsMZ+E9KdWXAAUM+UWbQnaKiLHQIDAQAB",
   "permissions": [

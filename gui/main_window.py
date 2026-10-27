@@ -187,10 +187,10 @@ class MainWindow(QMainWindow):
 
         # ================= View Menu =================
         menu_view = menubar.addMenu("&View")
-        self.act_view_drop = QAction("🎯 Show Floating Drop Basket", self, checkable=True)
-        self.act_view_drop.setChecked(True)
-        self.act_view_drop.toggled.connect(self._on_drop_toggled)
-        menu_view.addAction(self.act_view_drop)
+        act_refresh_view = QAction("🔄 &Refresh List", self)
+        act_refresh_view.setShortcut("F5")
+        act_refresh_view.triggered.connect(self._load_table_data)
+        menu_view.addAction(act_refresh_view)
 
         # ================= Help Menu =================
         menu_help = menubar.addMenu("&Help")

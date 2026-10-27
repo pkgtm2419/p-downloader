@@ -9,7 +9,9 @@ from pathlib import Path
 DB_PATH = os.path.join(str(Path.home() / ".pdownloader"), "downloads.db")
 
 def init_db(db_path: str = DB_PATH) -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    dir_name = os.path.dirname(db_path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     with conn:
