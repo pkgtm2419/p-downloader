@@ -121,9 +121,10 @@ class WebSpider:
                     except Exception:
                         pass
 
+            next_depth = (current_batch[0][1] + 1) if current_batch else 2
             for link in next_level_links:
-                if link not in self.visited_pages and (link, depth + 1) not in pages_to_crawl and is_safe_external_url(link):
-                    pages_to_crawl.append((link, depth + 1))
+                if link not in self.visited_pages and (link, next_depth) not in pages_to_crawl and is_safe_external_url(link):
+                    pages_to_crawl.append((link, next_depth))
 
         return self.discovered_items
 
