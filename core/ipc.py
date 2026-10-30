@@ -2,12 +2,13 @@
 Local Inter-Process Communication (IPC) for P-Downloader.
 Ensures single-instance management and enables browser extension / CLI
 to forward download requests securely to the running background instance.
-Implements secret token authentication to prevent unauthorized localhost socket exploitation.
+Implements secret token authentication, length-framed requests, and acknowledged responses.
 """
 import os
 import sys
 import socket
 import json
+import struct
 import secrets
 import threading
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Callable, Optional, Dict, Any
 IPC_HOST = "127.0.0.1"
 IPC_PORT = 49152
 TOKEN_FILE = Path.home() / ".pdownloader" / ".ipc_token"
+MAX_FRAME_SIZE = 256 * 1024  # 256 KiB max frame size to prevent memory exhaustion
 
 def get_or_create_ipc_token() -> str:
     """
@@ -27,7 +29,7 @@ def get_or_create_ipc_token() -> str:
             token = TOKEN_FILE.read_text(encoding="utf-8").strip()
             if len(token) >= 32:
                 return token
-        
+
         token = secrets.token_hex(32)
         TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
         TOKEN_FILE.write_text(token, encoding="utf-8")
@@ -42,27 +44,58 @@ def get_or_create_ipc_token() -> str:
 
 def send_to_running_instance(message: Dict[str, Any], timeout: float = 1.0) -> bool:
     """
-    Attempts to connect to an existing running P-Downloader instance.
-    Automatically attaches authentication token. Returns True if accepted.
+    Fire-and-forget message delivery to existing running instance.
+    """
+    try:
+        res = request_from_running_instance(message, timeout=timeout)
+        return bool(res and res.get("ok", True))
+    except Exception:
+        return False
+
+def request_from_running_instance(message: Dict[str, Any], timeout: float = 3.0) -> Optional[Dict[str, Any]]:
+    """
+    Send length-framed request to running instance and await acknowledged response.
     """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((IPC_HOST, IPC_PORT))
-        
-        # Attach authentication token
+
         msg_copy = dict(message)
         msg_copy["auth_token"] = get_or_create_ipc_token()
-        
-        raw = json.dumps(msg_copy).encode("utf-8")
-        s.sendall(raw)
+
+        raw_json = json.dumps(msg_copy).encode("utf-8")
+        if len(raw_json) > MAX_FRAME_SIZE:
+            s.close()
+            return None
+
+        # Send 4-byte length header followed by body
+        s.sendall(struct.pack(">I", len(raw_json)) + raw_json)
+
+        # Read response length
+        raw_len = s.recv(4)
+        if len(raw_len) < 4:
+            s.close()
+            return None
+        resp_len = struct.unpack(">I", raw_len)[0]
+        if resp_len > MAX_FRAME_SIZE:
+            s.close()
+            return None
+
+        resp_data = bytearray()
+        while len(resp_data) < resp_len:
+            chunk = s.recv(min(4096, resp_len - len(resp_data)))
+            if not chunk:
+                break
+            resp_data.extend(chunk)
+
         s.close()
-        return True
+        return json.loads(resp_data.decode("utf-8"))
     except Exception:
-        return False
+        return None
 
 class IPCServer:
-    def __init__(self, callback: Callable[[Dict[str, Any]], None]):
+    def __init__(self, callback: Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]):
         self.callback = callback
         self.running = False
         self._server_socket: Optional[socket.socket] = None
@@ -74,7 +107,7 @@ class IPCServer:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self._server_socket.bind((IPC_HOST, IPC_PORT))
-            self._server_socket.listen(5)
+            self._server_socket.listen(10)
             self.running = True
 
             self._thread = threading.Thread(target=self._listen_loop, daemon=True)
@@ -87,28 +120,50 @@ class IPCServer:
         while self.running and self._server_socket:
             try:
                 client_sock, _ = self._server_socket.accept()
-                client_sock.settimeout(2.0)
-                data = b""
-                while True:
-                    chunk = client_sock.recv(4096)
+                client_sock.settimeout(3.0)
+
+                # Peek or read length prefix
+                header = client_sock.recv(4)
+                if len(header) < 4:
+                    client_sock.close()
+                    continue
+
+                length = struct.unpack(">I", header)[0]
+                if length > MAX_FRAME_SIZE:
+                    client_sock.close()
+                    continue
+
+                raw_data = bytearray()
+                while len(raw_data) < length:
+                    chunk = client_sock.recv(min(4096, length - len(raw_data)))
                     if not chunk:
                         break
-                    data += chunk
+                    raw_data.extend(chunk)
+
+                if len(raw_data) < length:
+                    client_sock.close()
+                    continue
+
+                msg = json.loads(raw_data.decode("utf-8"))
+                provided_token = msg.get("auth_token", "")
+                if not secrets.compare_digest(provided_token, self.token):
+                    # Unauthorized: send error and close
+                    err_resp = json.dumps({"ok": False, "code": "AUTH_FAILED", "message": "Unauthorized"}).encode("utf-8")
+                    client_sock.sendall(struct.pack(">I", len(err_resp)) + err_resp)
+                    client_sock.close()
+                    continue
+
+                response = None
+                if self.callback:
+                    response = self.callback(msg)
+
+                if response is None:
+                    response = {"ok": True, "code": "OK"}
+
+                resp_bytes = json.dumps(response).encode("utf-8")
+                client_sock.sendall(struct.pack(">I", len(resp_bytes)) + resp_bytes)
                 client_sock.close()
 
-                if data:
-                    try:
-                        msg = json.loads(data.decode("utf-8"))
-                        # Verify security token
-                        provided_token = msg.get("auth_token", "")
-                        if not secrets.compare_digest(provided_token, self.token):
-                            # Unauthorized request rejected silently
-                            continue
-                        
-                        if self.callback:
-                            self.callback(msg)
-                    except Exception:
-                        pass
             except Exception:
                 if not self.running:
                     break
