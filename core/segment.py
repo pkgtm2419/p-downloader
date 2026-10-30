@@ -69,89 +69,38 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
     except Exception:
         pass
 
-    req_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-    }
-    # Auto-inject site authentication headers if stored
+    # Import V2 probe and models
+    from core.download_models import DownloadRequest, BrowserRequestContext, ProbeError
+    from core.http_probe import probe_http
+
+    req_headers = {}
     auth_headers = CredentialsManager().get_auth_headers_for_url(url)
     if auth_headers:
         req_headers.update(auth_headers)
-
     if headers:
         req_headers.update(headers)
 
-    filename = "download"
-    total_bytes = 0
-    supports_range = False
-    final_url = url
+    parsed = urlparse(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    ctx = BrowserRequestContext(per_origin_headers={origin: req_headers} if req_headers else {})
+    req = DownloadRequest(url=url, context=ctx)
 
     try:
-        # Try HEAD request first
-        head_resp = requests.head(url, headers=req_headers, allow_redirects=True, timeout=timeout)
-        final_url = head_resp.url
-        content_len = head_resp.headers.get("Content-Length")
-        accept_ranges = head_resp.headers.get("Accept-Ranges", "")
-        content_disposition = head_resp.headers.get("Content-Disposition", "")
-        
-        # Test range support with a 0-0 range GET if uncertain
-        try:
-            range_test = requests.get(final_url, headers={**req_headers, "Range": "bytes=0-0"}, timeout=timeout, stream=True)
-            if range_test.status_code == 206:
-                supports_range = True
-                if not content_len:
-                    cr = range_test.headers.get("Content-Range", "")
-                    if "/" in cr:
-                        total_bytes = int(cr.split("/")[1])
-            range_test.close()
-        except Exception:
-            pass
-
-        if content_len:
-            try:
-                total_bytes = int(content_len)
-            except Exception:
-                pass
-        if "bytes" in accept_ranges.lower():
-            supports_range = True
-
-        # Extract filename
-        if "filename=" in content_disposition:
-            parts = content_disposition.split("filename=")
-            raw_fn = parts[1].split(";")[0].strip("\"' ")
-            if raw_fn:
-                filename = raw_fn
-        else:
-            path = urlparse(final_url).path
-            extracted = os.path.basename(unquote(path))
-            if extracted:
-                filename = extracted
-
-    except Exception:
-        # Fallback to GET stream
-        try:
-            with requests.get(url, headers=req_headers, stream=True, allow_redirects=True, timeout=timeout) as resp:
-                final_url = resp.url
-                content_len = resp.headers.get("Content-Length")
-                if content_len:
-                    total_bytes = int(content_len)
-                path = urlparse(final_url).path
-                extracted = os.path.basename(unquote(path))
-                if extracted:
-                    filename = extracted
-        except Exception as e:
-            raise RuntimeError(f"Unable to probe URL: {e}")
-
-    filename = sanitize_filename(filename)
-
-
-    return {
-        "url": url,
-        "final_url": final_url,
-        "filename": filename,
-        "total_bytes": total_bytes,
-        "supports_range": supports_range
-    }
+        probe_res = probe_http(req, timeout_s=float(timeout))
+        return {
+            "url": url,
+            "final_url": probe_res.final_url,
+            "filename": probe_res.filename,
+            "total_bytes": probe_res.total_bytes if probe_res.total_bytes is not None else 0,
+            "supports_range": probe_res.supports_ranges,
+            "etag": probe_res.etag,
+            "last_modified": probe_res.last_modified,
+            "content_type": probe_res.content_type
+        }
+    except ProbeError as pe:
+        raise RuntimeError(f"Unable to probe URL: {pe}")
+    except Exception as e:
+        raise RuntimeError(f"Unable to probe URL: {e}")
 
 def validate_refresh_url(new_url: str, expected_size: int = 0) -> Tuple[bool, str, Dict[str, Any]]:
     """
