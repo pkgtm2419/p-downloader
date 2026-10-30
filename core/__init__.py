@@ -1,7 +1,7 @@
 """
 P-Downloader Core Engine Package
 """
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 from .engine import DownloadEngine
 from .segment import DownloadTask, probe_url

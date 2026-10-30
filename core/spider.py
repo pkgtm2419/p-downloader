@@ -1,11 +1,13 @@
 """
-Web Spider / Site Grabber Engine for P-Downloader.
-Recursively crawls web pages up to depth N to find downloadable media, documents,
-images, and archives for batch downloading.
+IDM-Style Web Spider & Site Grabber Crawler Engine for P-Downloader.
+Recursively crawls a target URL up to max_depth levels, extracts downloadable assets
+(Video, Audio, Images, Documents, Archives), and feeds discovered links directly into Batch Add.
+Includes SSRF and private IP address filtering (CWE-918 mitigation).
 """
 import os
 import re
-import threading
+import socket
+import ipaddress
 from urllib.parse import urljoin, urlparse
 from typing import List, Dict, Set, Optional, Callable, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,6 +21,29 @@ DEFAULT_MEDIA_EXTENSIONS = {
     "images": {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
 }
 
+def is_safe_external_url(url: str) -> bool:
+    """
+    Prevents SSRF and internal port scanning by blocking private/loopback IP addresses.
+    """
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            return False
+        try:
+            ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
 class WebSpider:
     def __init__(
         self,
@@ -27,12 +52,12 @@ class WebSpider:
         target_categories: Optional[List[str]] = None,
         custom_extensions: Optional[Set[str]] = None,
         stay_on_domain: bool = True,
-        max_workers: int = 4
+        max_threads: int = 4
     ):
-        self.start_url = start_url.strip()
-        self.max_depth = max(1, min(max_depth, 5))
+        self.start_url = start_url
+        self.max_depth = max(1, min(max_depth, 5))  # Clamp depth 1-5
         self.stay_on_domain = stay_on_domain
-        self.max_workers = max_workers
+        self.max_threads = max_threads
 
         parsed = urlparse(self.start_url)
         self.start_domain = parsed.netloc.lower()
@@ -49,33 +74,40 @@ class WebSpider:
         self.visited_pages: Set[str] = set()
         self.discovered_items: List[Dict[str, Any]] = []
         self._seen_urls: Set[str] = set()
-        self.is_cancelled = False
+        self.is_cancelled: bool = False
 
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
 
-    def crawl(
-        self,
-        progress_callback: Optional[Callable[[str, int], None]] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Executes multi-level crawling. Returns list of discovered downloadable items.
-        """
-        pages_to_crawl = [(self.start_url, 1)]
+    def cancel(self):
+        self.is_cancelled = True
 
-        for depth in range(1, self.max_depth + 1):
-            if self.is_cancelled:
-                break
+    def crawl(self, progress_callback: Optional[Callable[[str, int], None]] = None) -> List[Dict[str, Any]]:
+        """
+        Executes crawl up to self.max_depth.
+        Returns list of discovered file dictionaries.
+        """
+        if not is_safe_external_url(self.start_url):
+            return []
+            
+        pages_to_crawl = [(self.start_url, 1)]  # (url, current_depth)
 
-            current_level_pages = [url for url, d in pages_to_crawl if d == depth and url not in self.visited_pages]
-            if not current_level_pages:
+        while pages_to_crawl and not self.is_cancelled:
+            current_batch = pages_to_crawl[:]
+            pages_to_crawl.clear()
+
+            # Filter unvisited pages
+            unvisited = [item for item in current_batch if item[0] not in self.visited_pages and item[1] <= self.max_depth and is_safe_external_url(item[0])]
+            if not unvisited:
                 break
 
             next_level_links: List[str] = []
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {executor.submit(self._fetch_and_parse_page, page_url): page_url for page_url in current_level_pages}
+
+            with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
+                futures = {executor.submit(self._fetch_and_parse_page, url): url for url, depth in unvisited}
+
                 for future in as_completed(futures):
                     if self.is_cancelled:
                         break
@@ -90,13 +122,15 @@ class WebSpider:
                         pass
 
             for link in next_level_links:
-                if link not in self.visited_pages and (link, depth + 1) not in pages_to_crawl:
+                if link not in self.visited_pages and (link, depth + 1) not in pages_to_crawl and is_safe_external_url(link):
                     pages_to_crawl.append((link, depth + 1))
 
         return self.discovered_items
 
     def _fetch_and_parse_page(self, page_url: str) -> List[str]:
         child_html_pages: List[str] = []
+        if not is_safe_external_url(page_url):
+            return []
         try:
             resp = self.session.get(page_url, timeout=12)
             content_type = resp.headers.get("Content-Type", "").lower()
@@ -114,6 +148,8 @@ class WebSpider:
                 full_url = urljoin(page_url, link)
                 parsed = urlparse(full_url)
                 if parsed.scheme not in ("http", "https"):
+                    continue
+                if not is_safe_external_url(full_url):
                     continue
 
                 path = parsed.path
@@ -142,6 +178,3 @@ class WebSpider:
             pass
 
         return child_html_pages
-
-    def cancel(self):
-        self.is_cancelled = True

@@ -507,7 +507,8 @@ class MainWindow(QMainWindow):
                 pass
 
         if start_now and initial_url:
-            fn = initial_filename or None
+            from core.categories import sanitize_filename
+            fn = sanitize_filename(initial_filename) if initial_filename else None
             task = self.engine.create_download(
                 url=initial_url,
                 filename=fn,
@@ -969,7 +970,7 @@ class MainWindow(QMainWindow):
         elif action == act_open_file and file_exists:
             os.startfile(save_path)
         elif action == act_open_folder:
-            subprocess.run(f'explorer /select,"{save_path}"')
+            subprocess.run(["explorer.exe", f"/select,{os.path.normpath(save_path)}"])
         elif action == act_copy_link and first_item:
             QApplication.clipboard().setText(first_item["url"])
         elif action == act_remove_list:

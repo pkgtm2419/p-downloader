@@ -14,6 +14,7 @@ from urllib.parse import urlparse, unquote
 from .network_binder import NetworkManager, NetworkInterface
 from .speed_limiter import SpeedLimiter
 from .credentials_manager import CredentialsManager
+from .categories import sanitize_filename
 
 class Segment:
     def __init__(self, index: int, start: int, end: int, downloaded: int = 0):
@@ -140,6 +141,9 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
                     filename = extracted
         except Exception as e:
             raise RuntimeError(f"Unable to probe URL: {e}")
+
+    filename = sanitize_filename(filename)
+
 
     return {
         "url": url,
