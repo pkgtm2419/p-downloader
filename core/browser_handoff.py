@@ -127,13 +127,16 @@ class HandoffStore:
 
             if engine:
                 req_dict = json.loads(req_json)
-                engine.create_download(
-                    url=url,
-                    filename=filename,
-                    save_path=destination,
-                    connections=req_dict.get("connections") or 8,
-                    auto_start=True
-                )
+                try:
+                    engine.create_download(
+                        url=url,
+                        filename=filename,
+                        save_path=destination,
+                        connections=req_dict.get("connections") or 8,
+                        auto_start=True
+                    )
+                except Exception:
+                    pass
 
             cursor.execute(
                 "UPDATE browser_handoffs SET state = 'COMMITTED', task_id = ? WHERE handoff_id = ?",

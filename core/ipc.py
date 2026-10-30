@@ -154,8 +154,11 @@ class IPCServer:
                     continue
 
                 response = None
-                if self.callback:
-                    response = self.callback(msg)
+                try:
+                    if self.callback:
+                        response = self.callback(msg)
+                except Exception as e:
+                    response = {"ok": False, "error": str(e)}
 
                 if response is None:
                     response = {"ok": True, "code": "OK"}

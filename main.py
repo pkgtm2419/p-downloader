@@ -79,11 +79,52 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
     engine = DownloadEngine()
     window = MainWindow(engine)
 
+    from core.browser_handoff import HandoffStore
+    from core.download_models import DownloadRequest, DownloadKind
+    handoff_store = HandoffStore(engine.db.conn)
+
     # IPC Server for handling single-instance requests from browser or subsequent launches
     def handle_ipc(msg: dict):
         action = msg.get("action")
         url = msg.get("url")
-        if action in ("download", "add_download") and url:
+
+        if action == "reserve" and url:
+            req = DownloadRequest(
+                url=url,
+                filename=msg.get("filename"),
+                destination=msg.get("destination"),
+                kind=DownloadKind.HTTP
+            )
+            offer = handoff_store.reserve(req, capture_id=msg.get("captureId"))
+            return {
+                "ok": True,
+                "state": offer.state,
+                "handoffId": offer.handoff_id,
+                "expiresAt": offer.expires_at_utc
+            }
+
+        elif action == "commit":
+            handoff_id = msg.get("handoffId")
+            if not handoff_id:
+                return {"ok": False, "error": "MISSING_HANDOFF_ID"}
+            task_id = handoff_store.commit(handoff_id, engine=engine)
+            QTimer.singleShot(0, window._load_table_data)
+            return {"ok": True, "state": "COMMITTED", "taskId": task_id}
+
+        elif action == "release":
+            handoff_id = msg.get("handoffId")
+            if handoff_id:
+                handoff_store.release(handoff_id)
+            return {"ok": True, "state": "RELEASED"}
+
+        elif action == "status":
+            handoff_id = msg.get("handoffId")
+            offer = handoff_store.get_status(handoff_id) if handoff_id else None
+            if offer:
+                return {"ok": True, "state": offer.state, "taskId": offer.task_id}
+            return {"ok": False, "error": "NOT_FOUND"}
+
+        elif action in ("download", "add_download") and url:
             fn = msg.get("filename", "")
             page_url = msg.get("pageUrl", "")
             quality = msg.get("quality", "")
@@ -99,8 +140,13 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
                 headers=h,
                 start_now=s
             ))
+            return {"ok": True, "status": "queued"}
+
         elif action == "restore":
             QTimer.singleShot(0, lambda: (window.showNormal(), window.activateWindow(), window.raise_()))
+            return {"ok": True}
+
+        return {"ok": False, "error": f"Unknown action: {action}"}
 
     ipc_server = IPCServer(handle_ipc)
     ipc_server.start()
