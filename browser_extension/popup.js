@@ -14,8 +14,8 @@ async function refresh() {
     const row = document.createElement('div'); row.className='item';
     const check = document.createElement('input'); check.type='checkbox'; check.dataset.index=index; check.disabled=item.unsupported;
     const label = document.createElement('span'); label.textContent=item.title || item.url.split('/').pop().slice(0,80) || 'Media';
-    const detail=document.createElement('small'); detail.textContent=[item.format,item.quality,item.bitrate?`${Math.round(item.bitrate/1000)} kbps`:'',item.unsupported?(item.reason||'Unsupported DASH stream'):item.url.slice(0,140)].filter(Boolean).join(' · '); label.append(detail);
-    const button=document.createElement('button'); button.textContent='↓'; button.title='Download'; button.disabled=item.unsupported;
+    const detail=document.createElement('small'); detail.textContent=[item.format,item.quality,item.bitrate?`${Math.round(item.bitrate/1000)} kbps`:'',item.unsupported?(item.reason||'Unsupported DASH stream'):item.url.slice(0,140)].filter(Boolean).join(' \u00b7 '); label.append(detail);
+    const button=document.createElement('button'); button.textContent='\u2193'; button.title='Download'; button.disabled=item.unsupported;
     button.onclick=async()=> { try { await download(item); status.textContent='Added to desktop downloader.'; } catch(e) { status.textContent=e.message; } };
     row.append(check,label,button); list.append(row);
   });

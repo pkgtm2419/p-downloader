@@ -98,7 +98,7 @@ class FFmpegMuxer:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                creationflags=CREATE_NO_WINDOW,
+                **({"creationflags": 0x08000000} if sys.platform == "win32" else {}),
                 text=True,
                 encoding="utf-8",
                 errors="replace"
@@ -148,7 +148,7 @@ class FFmpegMuxer:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                creationflags=CREATE_NO_WINDOW,
+                **({"creationflags": 0x08000000} if sys.platform == "win32" else {}),
                 text=True,
                 encoding="utf-8",
                 errors="replace"

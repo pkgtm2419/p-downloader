@@ -12,13 +12,18 @@ from .db import DownloadDB, DB_PATH
 class CredentialsManager:
     _instance = None
 
-    def __new__(cls, db: Optional[DownloadDB] = None):
+    def __new__(cls, db=None):
+        # Allow per-instance creation when db is explicitly provided (test isolation)
+        if db is not None:
+            instance = super().__new__(cls)
+            instance._init(db)
+            return instance
         if cls._instance is None:
-            cls._instance = super(CredentialsManager, cls).__new__(cls)
-            cls._instance._init(db)
+            cls._instance = super().__new__(cls)
+            cls._instance._init(None)
         return cls._instance
 
-    def _init(self, db: Optional[DownloadDB] = None):
+    def _init(self, db=None):
         self.db = db or DownloadDB()
         self._init_table()
 

@@ -40,7 +40,7 @@
       host.style.cssText = 'position:fixed;z-index:2147483647;display:none;pointer-events:auto';
       const shadow = host.attachShadow({mode:'closed'});
       const iconUrl = (api.runtime?.getURL) ? api.runtime.getURL('icons/icon16.png') : '';
-      shadow.innerHTML = '<style>:host{font:12px "Segoe UI",Tahoma,sans-serif;color:#ffffff}.bar{display:flex;justify-content:flex-end;align-items:stretch}.download,.dismiss{font:12px "Segoe UI",Tahoma,sans-serif;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#ffffff;border:1px solid #047857;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.25);height:28px;display:inline-flex;align-items:center;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.25)}.download{border-radius:4px 0 0 4px;padding:3px 10px;gap:6px}.download .app-icon{width:16px;height:16px;border-radius:3px;flex-shrink:0;display:inline-block}.bar-arrow,.bar-text,.bar-caret{color:#ffffff}.dismiss{width:26px;padding:0;border-left:1px solid rgba(255,255,255,0.25);border-radius:0 4px 4px 0;font-size:16px;line-height:22px;justify-content:center}.download:hover,.dismiss:hover{background:linear-gradient(135deg,#34d399 0%,#059669 100%);color:#ffffff}.dismiss:hover{background:#047857;color:#fee2e2}.download:disabled{opacity:.65}.chooser{position:fixed;background:#ffffff;color:#111827;padding:6px;border:1px solid #10b981;border-radius:4px;width:min(420px,calc(100vw - 10px));box-shadow:0 4px 14px rgba(0,0,0,0.25);max-height:min(330px,55vh);overflow:auto;z-index:2147483647}.chooser p{margin:4px 6px 8px;line-height:1.4;font-weight:600;color:#065f46}.row{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:3px;box-shadow:none;padding:6px 8px;font:12px "Segoe UI",Tahoma,sans-serif;color:#065f46;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}.row:hover:not(:disabled),.row:focus-visible{background:#ecfdf5;color:#047857;outline:1px solid #10b981}.row:disabled{color:#9ca3af;cursor:not-allowed}</style><div class="bar"><button class="download" type="button">' + (iconUrl ? '<img class="app-icon" src="' + iconUrl + '" alt="" onerror="this.style.display=\'none\'" />' : '') + '<span class="bar-arrow">↓</span> <span class="bar-text">Download this video</span> <span class="bar-caret">▾</span></button><button class="dismiss" type="button" title="Hide this download panel" aria-label="Hide this download panel">×</button></div>';
+      shadow.innerHTML = '<style>:host{font:12px "Segoe UI",Tahoma,sans-serif;color:#ffffff}.bar{display:flex;justify-content:flex-end;align-items:stretch}.download,.dismiss{font:12px "Segoe UI",Tahoma,sans-serif;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#ffffff;border:1px solid #047857;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.25);height:28px;display:inline-flex;align-items:center;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.25)}.download{border-radius:4px 0 0 4px;padding:3px 10px;gap:6px}.download .app-icon{width:16px;height:16px;border-radius:3px;flex-shrink:0;display:inline-block}.bar-arrow,.bar-text,.bar-caret{color:#ffffff}.dismiss{width:26px;padding:0;border-left:1px solid rgba(255,255,255,0.25);border-radius:0 4px 4px 0;font-size:16px;line-height:22px;justify-content:center}.download:hover,.dismiss:hover{background:linear-gradient(135deg,#34d399 0%,#059669 100%);color:#ffffff}.dismiss:hover{background:#047857;color:#fee2e2}.download:disabled{opacity:.65}.chooser{position:fixed;background:#ffffff;color:#111827;padding:6px;border:1px solid #10b981;border-radius:4px;width:min(420px,calc(100vw - 10px));box-shadow:0 4px 14px rgba(0,0,0,0.25);max-height:min(330px,55vh);overflow:auto;z-index:2147483647}.chooser p{margin:4px 6px 8px;line-height:1.4;font-weight:600;color:#065f46}.row{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:3px;box-shadow:none;padding:6px 8px;font:12px "Segoe UI",Tahoma,sans-serif;color:#065f46;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}.row:hover:not(:disabled),.row:focus-visible{background:#ecfdf5;color:#047857;outline:1px solid #10b981}.row:disabled{color:#9ca3af;cursor:not-allowed}</style><div class="bar"><button class="download" type="button">' + (iconUrl ? '<img class="app-icon" src="' + iconUrl + '" alt="" onerror="this.style.display=\'none\'" />' : '') + '<span class="bar-arrow">\u2193</span> <span class="bar-text">Download this video</span> <span class="bar-caret">\u25be</span></button><button class="dismiss" type="button" title="Hide this download panel" aria-label="Hide this download panel">\u00d7</button></div>';
       const button = shadow.querySelector('.download');
       const dismiss = shadow.querySelector('.dismiss');
       const record = {video, host, shadow, dismissed:false}; records.add(record);
@@ -67,7 +67,7 @@
           const old = shadow.querySelector('.chooser'); if(old) { old.remove(); position(); return; }
           closeChoosers(record);
           const chooser=document.createElement('div'); chooser.className='chooser';
-          const hint=document.createElement('p'); hint.textContent='Checking available video formats…';
+          const hint=document.createElement('p'); hint.textContent='Checking available video formats\u2026';
           chooser.append(hint); shadow.append(chooser); position();
           try {
             const result=await send({action:'listForFrame'});
@@ -84,10 +84,10 @@
               row.title=item.reason||'';
               const format=item.format||(/\.m3u8(?:[?#]|$)/i.test(item.url)?'HLS':/\.(mp4|webm|mp3|m4a|mov)(?:[?#]|$)/i.exec(item.url)?.[1]?.toUpperCase()||'Media');
               const title = item.asset ? `Video ${item.asset}` : item.title || document.title || 'Video';
-              row.textContent = `${index+1}. ${item.quality || format} · ${format} · ${item.audioState}${item.bitrate ? ' · '+Math.round(item.bitrate/1000)+' kbps' : ''} — ${title}`;
+              row.textContent = `${index+1}. ${item.quality || format} \u00b7 ${format} \u00b7 ${item.audioState}${item.bitrate ? ' \u00b7 '+Math.round(item.bitrate/1000)+' kbps' : ''} \u2014 ${title}`;
               row.onclick=async event=>{
                 event.preventDefault();event.stopPropagation();row.disabled=true;
-                hint.textContent='Opening download options…';
+                hint.textContent='Opening download options\u2026';
                 try{const response=await send({action:'download',item:{...item,startNow:false}});hint.textContent=response.ok?'Download opened in P-Downloader. Choose Start Download or Download Later there. An active download is opened instead of duplicated.':friendlyError(response.error);}catch(error){hint.textContent=friendlyError(error.message);}
                 row.disabled=!!item.unsupported;
               };chooser.append(row);
@@ -99,7 +99,7 @@
     }
     position();
   }
-  function friendlyError(message) { return /native messaging host not found/i.test(message || '') ? 'Chrome cannot find the desktop connector. Open P-Downloader → Browser Integration → Refresh browsers, then reload this extension and page. Details: '+message : message; }
+  function friendlyError(message) { return /native messaging host not found/i.test(message || '') ? 'Chrome cannot find the desktop connector. Open P-Downloader \u2192 Browser Integration \u2192 Refresh browsers, then reload this extension and page. Details: '+message : message; }
   function closeChoosers(except) {
     for(const record of records){
       if(record===except)continue;

@@ -124,7 +124,7 @@ class SchedulerService:
         # 1. Disconnect Internet / VPN
         if db.get_setting("sched_action_hangup", "0") == "1":
             try:
-                subprocess.Popen(["rasdial", "/disconnect"], creationflags=0x08000000 if sys.platform == "win32" else 0)
+                subprocess.Popen(["rasdial", "/disconnect"], **({"creationflags": 0x08000000} if sys.platform == "win32" else {}))
             except Exception:
                 pass
 
@@ -142,7 +142,7 @@ class SchedulerService:
                 if sys.platform == "win32":
                     subprocess.Popen(
                         ["shutdown.exe", "/s", "/t", "60", "/c", "P-Downloader queue completed."],
-                        creationflags=0x08000000
+                        **({"creationflags": 0x08000000} if sys.platform == "win32" else {})
                     )
             except Exception:
                 pass

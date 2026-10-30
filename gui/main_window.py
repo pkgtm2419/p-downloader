@@ -30,7 +30,10 @@ from .grabber_dialog import GrabberDialog
 from .refresh_dialog import RefreshDownloadDialog
 from .site_logins_dialog import SiteLoginsDialog
 from .icons import get_sidebar_icon
-import winsound
+try:
+    import winsound
+except ImportError:
+    winsound = None
 
 RESOURCES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources"))
 
@@ -1005,7 +1008,8 @@ class MainWindow(QMainWindow):
         if task.status == "completed":
             if self.engine.db.get_setting("sound_on_finish", "1") == "1":
                 try:
-                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                    if winsound:
+                        winsound.MessageBeep(winsound.MB_ICONASTERISK)
                 except Exception:
                     pass
 
