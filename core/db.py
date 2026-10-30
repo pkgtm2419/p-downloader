@@ -46,6 +46,12 @@ def init_db(db_path: str = DB_PATH) -> sqlite3.Connection:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Ensure kind column exists for typed download task reconstruction
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(downloads)")
+        cols = [r[1] for r in cursor.fetchall()]
+        if "kind" not in cols:
+            conn.execute("ALTER TABLE downloads ADD COLUMN kind TEXT DEFAULT 'http'")
     return conn
 
 class DownloadDB:

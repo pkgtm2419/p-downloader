@@ -4,6 +4,7 @@ Supports dynamic chunking, multi-network interface bonding (Plexo),
 expired URL refresh/recovery (IDM), pause/resume, and direct offset writing.
 """
 import os
+import re
 import json
 import time
 import requests
@@ -95,7 +96,8 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
             "supports_range": probe_res.supports_ranges,
             "etag": probe_res.etag,
             "last_modified": probe_res.last_modified,
-            "content_type": probe_res.content_type
+            "content_type": probe_res.content_type,
+            "is_unknown_length": probe_res.total_bytes is None
         }
     except ProbeError as pe:
         raise RuntimeError(f"Unable to probe URL: {pe}")
@@ -174,8 +176,10 @@ class DownloadTask:
         return True
 
     def prepare(self):
+        self.staging_path = self.save_path + ".part"
+
         # Load metadata if resuming
-        if os.path.exists(self.meta_file) and os.path.exists(self.save_path):
+        if os.path.exists(self.meta_file) and (os.path.exists(self.save_path) or os.path.exists(self.staging_path)):
             try:
                 with open(self.meta_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -183,23 +187,29 @@ class DownloadTask:
                     self.supports_range = data["supports_range"]
                     self.segments = [Segment.from_dict(s) for s in data["segments"]]
                     self.downloaded_bytes = sum(s.downloaded for s in self.segments)
-                    # If URL in metadata differs and self.url is set, keep current
                     return
             except Exception:
                 pass
 
         # Probe fresh URL
         info = probe_url(self.url)
-        self.total_bytes = info["total_bytes"]
-        self.supports_range = info["supports_range"]
+        self.is_unknown_length = info.get("is_unknown_length", False)
+        self.total_bytes = None if self.is_unknown_length else info.get("total_bytes", 0)
+        self.supports_range = info.get("supports_range", False)
 
         save_dir = os.path.dirname(self.save_path)
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
 
-        if self.supports_range and self.total_bytes > 0:
-            # Pre-allocate sparse file
-            with open(self.save_path, "wb") as f:
+        if self.total_bytes == 0 and info.get("total_bytes") is not None:
+            # Legitimate 0-byte file
+            self.segments = [Segment(0, 0, 0)]
+            self._save_metadata()
+            return
+
+        if self.supports_range and (self.total_bytes is not None) and self.total_bytes > 0:
+            # Pre-allocate sparse staging file
+            with open(self.staging_path, "wb") as f:
                 f.seek(self.total_bytes - 1)
                 f.write(b"\0")
 
@@ -213,7 +223,8 @@ class DownloadTask:
                 self.segments.append(Segment(i, start, end))
         else:
             # Single stream
-            self.segments = [Segment(0, 0, max(0, self.total_bytes - 1))]
+            max_end = max(0, self.total_bytes - 1) if self.total_bytes else 0
+            self.segments = [Segment(0, 0, max_end)]
 
         self._save_metadata()
 
@@ -234,14 +245,41 @@ class DownloadTask:
         if self.status == "downloading":
             return
         self._stop_event.clear()
+        self.error_message = ""
         self.status = "downloading"
         self._last_time = time.time()
         self._last_downloaded = self.downloaded_bytes
 
+        if not hasattr(self, 'staging_path'):
+            self.staging_path = self.save_path + ".part"
+
         if not self.segments:
             self.prepare()
 
-        if self.supports_range and self.total_bytes > 0:
+        if self.total_bytes == 0 and not getattr(self, 'is_unknown_length', False) and self.segments and self.segments[0].end == 0:
+            # 0-byte file completed immediately
+            with open(self.save_path, "wb") as f:
+                pass
+            if os.path.exists(self.staging_path):
+                try:
+                    os.remove(self.staging_path)
+                except Exception:
+                    pass
+            self.status = "completed"
+            self.downloaded_bytes = 0
+            self.speed = 0.0
+            if os.path.exists(self.meta_file):
+                try:
+                    os.remove(self.meta_file)
+                except Exception:
+                    pass
+            if self.on_progress:
+                self.on_progress(self)
+            if self.on_complete:
+                self.on_complete(self)
+            return
+
+        if self.supports_range and self.total_bytes and self.total_bytes > 0:
             self._threads = []
             for seg in self.segments:
                 if not seg.completed:
@@ -257,9 +295,9 @@ class DownloadTask:
         if self.status != "downloading":
             return
         self._stop_event.set()
-        self.status = "paused"
         for t in self._threads:
-            t.join(timeout=1.0)
+            t.join(timeout=2.0)
+        self.status = "paused"
         self._save_metadata()
         if self.on_progress:
             self.on_progress(self)
@@ -322,11 +360,21 @@ class DownloadTask:
                     err = f"HTTP {resp.status_code} (Link Expired - Refresh Address)"
                     raise RuntimeError(err)
 
+                if resp.status_code == 200 and start_byte > 0:
+                    raise RuntimeError("Server returned HTTP 200 to interior ranged request")
+
                 if resp.status_code not in (200, 206):
                     raise RuntimeError(f"HTTP {resp.status_code}")
 
-                mode = "r+b" if os.path.exists(self.save_path) else "w+b"
-                with open(self.save_path, mode) as f:
+                if resp.status_code == 206:
+                    cr = resp.headers.get("Content-Range", "")
+                    m = re.search(r"bytes\s+(\d+)-(\d+)", cr, re.IGNORECASE)
+                    if m and int(m.group(1)) != start_byte:
+                        raise RuntimeError(f"Content-Range mismatch: expected {start_byte}, got {cr}")
+
+                target_file = self.staging_path if hasattr(self, 'staging_path') else self.save_path
+                mode = "r+b" if os.path.exists(target_file) else "w+b"
+                with open(target_file, mode) as f:
                     f.seek(start_byte)
                     for chunk in resp.iter_content(chunk_size=65536):
                         if self._stop_event.is_set():
@@ -373,7 +421,8 @@ class DownloadTask:
         if auth_headers:
             headers.update(auth_headers)
 
-        mode = "ab" if (self.downloaded_bytes > 0 and self.supports_range) else "wb"
+        target_file = self.staging_path if hasattr(self, 'staging_path') else self.save_path
+        mode = "ab" if (self.downloaded_bytes > 0 and self.supports_range and os.path.exists(target_file)) else "wb"
         if mode == "ab":
             headers["Range"] = f"bytes={self.downloaded_bytes}-"
 
@@ -386,7 +435,7 @@ class DownloadTask:
                 if resp.status_code not in (200, 206):
                     raise RuntimeError(f"HTTP {resp.status_code}")
 
-                with open(self.save_path, mode) as f:
+                with open(target_file, mode) as f:
                     for chunk in resp.iter_content(chunk_size=65536):
                         if self._stop_event.is_set():
                             break
@@ -400,6 +449,14 @@ class DownloadTask:
                                 assigned_if.record_bytes(len(chunk))
                                 assigned_if.update_speed()
                             self._update_speed()
+
+                # Clean EOF reached
+                if not self._stop_event.is_set():
+                    if not self.total_bytes or self.total_bytes == 0:
+                        self.total_bytes = self.downloaded_bytes
+                    if self.segments:
+                        self.segments[0].completed = True
+                        self.segments[0].end = max(0, self.downloaded_bytes - 1)
 
         except Exception as e:
             if not self._stop_event.is_set() and self.status not in ("paused", "cancelled"):
@@ -415,8 +472,18 @@ class DownloadTask:
         if self._stop_event.is_set() or self.status in ("paused", "cancelled"):
             return
 
-        all_done = all(s.completed for s in self.segments)
-        if all_done or (self.total_bytes > 0 and self.downloaded_bytes >= self.total_bytes):
+        all_done = bool(self.segments and all(s.completed for s in self.segments))
+        size_matched = (self.total_bytes is not None and self.total_bytes > 0 and self.downloaded_bytes >= self.total_bytes)
+
+        if all_done or size_matched:
+            # Publish staging file to final destination
+            if hasattr(self, 'staging_path') and os.path.exists(self.staging_path):
+                try:
+                    if os.path.exists(self.save_path):
+                        os.remove(self.save_path)
+                    os.replace(self.staging_path, self.save_path)
+                except Exception:
+                    pass
             self.status = "completed"
             self.speed = 0.0
             if os.path.exists(self.meta_file):

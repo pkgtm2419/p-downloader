@@ -24,6 +24,20 @@ class DownloadEngine:
             except Exception:
                 pass
 
+    def create_from_request(
+        self,
+        request,
+        auto_start: bool = True
+    ) -> DownloadTask:
+        from core.download_models import DownloadRequest
+        return self.create_download(
+            url=request.url,
+            filename=request.filename,
+            save_path=request.destination,
+            connections=request.connections or 8,
+            auto_start=auto_start
+        )
+
     def create_download(
         self,
         url: str,

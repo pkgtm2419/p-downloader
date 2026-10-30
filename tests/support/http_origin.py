@@ -202,8 +202,8 @@ class FaultOriginServer(HTTPServer):
         self.request_history = []
         self.interrupted_attempts = 0
         self.etag_request_count = 0
-        # Deterministic 64KB payload
-        self.payload_normal = bytes((i % 256) for i in range(65536))
+        # Deterministic 512KB payload
+        self.payload_normal = bytes((i % 256) for i in range(524288))
 
     def reset_stats(self):
         with self.lock:
