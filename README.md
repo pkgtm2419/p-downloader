@@ -60,6 +60,15 @@
 - **Domain Credentials Store**: Securely stores basic HTTP and Bearer token credentials for private repositories, corporate intranets, and authenticated file servers.
 - **Automatic Header Injection**: Matches target URLs to domain profiles and applies authentication automatically.
 
+### 🛡️ IDM-Grade Robustness & v2 Architecture
+- **Strict HTTP Capability Probing**: Strict bounded Range GET probe detects servers that falsely claim `Accept-Ranges: bytes` but return HTTP 200, automatically falling back to robust single-stream downloads without file corruption.
+- **Durable Staging & Atomic Publish**: Downloads write verified blocks into `.part` staging stores with SQLite journaling. Only completely verified downloads are atomically published (`os.replace`) to the destination filename.
+- **Shared Block Queue & Tail Optimization**: Slices large files into 1-8 MiB verified blocks with work claiming, hedged tail scheduling to bypass slow straggler streams, and cooperative pause/resume.
+- **Dynamic Adaptive Concurrency**: Real-time closed-loop AIMD controller dynamically adjusts stream counts according to server rate limits (429/503), disk backpressure, and network conditions.
+- **Shared Bandwidth Token Bucket**: Enforces system-wide resource limits across all active tasks (max active downloads, global streams, and per-origin/per-route stream caps).
+- **Transactional Protocol v2 Native Messaging**: 2-phase reservation (`reserve` -> `commit` -> `release` -> `status`) ensures browser extension handoffs never drop downloads or desynchronize.
+- **Origin-Scoped Auth & Secret Redaction**: Prevents credentials leakage across cross-origin redirects and automatically masks tokens, cookies, and passwords in diagnostic logs.
+
 ### ⏱️ High-Precision Speed Limiter & Multi-Queue Scheduler
 - **Token-Bucket Throttling**: Restrict transfer speeds from 100 KB/s up to Gigabit capacity so background downloads never disrupt gaming, VoIP, or video streaming.
 - **Timed Multi-Queue Scheduler**: Automate off-peak queues with automatic computer shutdown, sleep, or network disconnect.

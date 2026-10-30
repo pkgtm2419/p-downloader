@@ -1,34 +1,26 @@
-# ROADMAP.md — Security Hardening Roadmap
+# ROADMAP.md — P-Downloader IDM-Grade Reliability & Adaptive Concurrency
 
-### Phase 1: Input Sanitization & Path Traversal Defense
-- **Goal**: Protect filesystem boundaries against `Content-Disposition` path traversal and directory escape.
-- **Tasks**:
-  1. Add `sanitize_filename()` in `core/categories.py` and `core/segment.py`.
-  2. Implement canonical path resolution check in `get_default_save_path()`.
-  3. Add unit tests for path traversal attack strings (`../../`, absolute paths, Windows drive specifiers).
-- **Status**: Ready
+Based on `2026-10-30-p-downloader-idm-grade-improvements.md`.
 
-### Phase 2: IPC Hardening & Token Authentication
-- **Goal**: Prevent local socket hijacking and unauthorized remote download triggering.
-- **Tasks**:
-  1. Implement secure random token generation and authentication in `core/ipc.py`.
-  2. Update `browser_extension/pdownloader_native_host.py` to supply token.
-  3. Require explicit user confirmation in `gui/main_window.py` for IPC downloads.
-- **Status**: Ready
+## Phase A: Integrity Foundation (Tasks 1-4, 8)
+- [x] Task 1: Baseline, reproducible origin and fault-injection tests (P0)
+- [x] Task 2: Correct HTTP probing, metadata and download kind contracts (P0)
+- [x] Task 3: Durable staging and verified byte-range workers (P0)
+- [x] Task 4: Shared block queue and correct pause/resume lifecycle (P0)
+- [x] Task 8: Retry classification, rate-limit recovery and final integrity (P1)
 
-### Phase 3: Cryptographic Storage & Protocol Hardening
-- **Goal**: Encrypt credentials at rest, restrict bencode recursion, and block SSRF.
-- **Tasks**:
-  1. Add DPAPI encryption / decryption in `core/credentials_manager.py`.
-  2. Add `max_depth` recursion guard and byte limit in `core/torrent.py`.
-  3. Add SSRF / private IP address filtering in `core/spider.py`.
-  4. Fix argument list formatting in `gui/main_window.py`.
-- **Status**: Ready
+## Phase B: IDM-like Throughput and Efficiency (Tasks 5-7)
+- [x] Task 5: Adaptive per-network concurrency and tail optimization (P1)
+- [x] Task 6: Global resource budgets, shared rate limits and fairness (P1)
+- [x] Task 7: Real network adapter discovery, routing and graceful failover (P1)
 
-### Phase 4: Verification, Version Bump & CI Publication
-- **Goal**: Verify all 31+ unit tests plus new security regression tests, bump version to v1.0.6, and verify GitHub Actions release.
-- **Tasks**:
-  1. Run complete unit test suite across all modules.
-  2. Bump version to 1.0.6.
-  3. Commit and tag release.
-- **Status**: Ready
+## Phase C: Browser Ownership and Authentication (Tasks 9-13)
+- [x] Task 9: Authenticated, acknowledged desktop IPC and native-messaging protocol (P0)
+- [x] Task 10: Browser extension capture coordinator and guaranteed decline fallback (P0)
+- [x] Task 11: End-to-end capture acknowledgment and fallback UI integration (P0)
+- [x] Task 12: Authenticated sessions and secret-safe request context (P0)
+- [x] Task 13: Cross-browser install/coverage and unsupported-download fallback (P1)
+
+## Phase D: UX, Compatibility and Rollout (Tasks 14-15)
+- [x] Task 14: GUI resource observability, configuration and regression preservation (P1)
+- [x] Task 15: Benchmark harness, CI, compatibility, security and staged release gate (P0)

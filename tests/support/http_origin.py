@@ -214,14 +214,17 @@ class FaultOriginServer(HTTPServer):
 
 class FaultOrigin:
     """Context manager for running FaultOriginServer on a local background thread."""
-    def __init__(self, host="127.0.0.1"):
+    def __init__(self, host="127.0.0.1", payload=None):
         self.host = host
+        self.custom_payload = payload
         self.server = None
         self.thread = None
         self.port = 0
 
     def __enter__(self):
         self.server = FaultOriginServer(self.host, 0)
+        if self.custom_payload is not None:
+            self.server.payload_normal = self.custom_payload
         self.port = self.server.server_port
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()

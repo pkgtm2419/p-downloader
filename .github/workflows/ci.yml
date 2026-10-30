@@ -69,9 +69,18 @@ jobs:
           # Report warnings without failing build
           flake8 . --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics --exclude=.git,__pycache__,build,dist,Output,.venv,venv
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Run unit & integration tests
         run: |
           python -m unittest discover -s tests -v
+
+      - name: Run browser extension tests
+        run: |
+          node --test tests/browser/*.test.mjs
 
   build-check:
     name: Build Verification (Windows PyInstaller)
