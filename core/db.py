@@ -38,6 +38,14 @@ def init_db(db_path: str = DB_PATH) -> sqlite3.Connection:
                 value TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS transfer_journals (
+                task_id TEXT PRIMARY KEY,
+                staging_path TEXT NOT NULL,
+                journal_json TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     return conn
 
 class DownloadDB:

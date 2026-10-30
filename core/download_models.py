@@ -44,6 +44,13 @@ class HttpProbeResult:
     filename: str = "download"
     content_type: Optional[str] = None
 
+@dataclass(frozen=True)
+class BlockWork:
+    block_id: int
+    start: int
+    end_exclusive: Optional[int]           # None for unknown-length single stream
+    durable_bytes: int = 0
+
 class ProbeError(Exception):
     """Explicit probe failure with structured error code."""
     def __init__(self, code: str, message: str):
