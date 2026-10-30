@@ -75,6 +75,14 @@ class SettingsDialog(QDialog):
         self.txt_exceptions.setPlaceholderText("*.example.com, download.mysite.org")
         ex_vbox.addWidget(self.txt_exceptions)
         gen_vbox.addWidget(grp_ex)
+
+        grp_capture = QGroupBox("Browser Integration & Capture Policy")
+        cap_grid = QGridLayout(grp_capture)
+        cap_grid.addWidget(QLabel("Capture Policy:"), 0, 0)
+        self.cmb_capture_mode = QComboBox()
+        self.cmb_capture_mode.addItems(["Auto (Capture Eligible Downloads)", "Prompt Before Capture", "Off (Disabled)"])
+        cap_grid.addWidget(self.cmb_capture_mode, 0, 1)
+        gen_vbox.addWidget(grp_capture)
         gen_vbox.addStretch()
 
         tabs.addTab(tab_gen, "General")
@@ -132,33 +140,47 @@ class SettingsDialog(QDialog):
         grp_net = QGroupBox("Connection Type / Speed")
         net_grid = QGridLayout(grp_net)
 
-        net_grid.addWidget(QLabel("Connection Type:"), 0, 0)
+        net_grid.addWidget(QLabel("Stream Allocation Mode:"), 0, 0)
+        self.cmb_conn_mode = QComboBox()
+        self.cmb_conn_mode.addItems([
+            "Auto (Adaptive Dynamic Concurrency)",
+            "Fixed Streams"
+        ])
+        net_grid.addWidget(self.cmb_conn_mode, 0, 1)
+
+        net_grid.addWidget(QLabel("Connection Type:"), 1, 0)
         self.cmb_conn_type = QComboBox()
         self.cmb_conn_type.addItems([
             "High Speed: Direct / Broadband / 4G / 5G / Fiber",
             "Medium Speed: DSL / Standard Cable",
             "Low Speed: Dial-up / Mobile Edge"
         ])
-        net_grid.addWidget(self.cmb_conn_type, 0, 1)
+        net_grid.addWidget(self.cmb_conn_type, 1, 1)
 
-        net_grid.addWidget(QLabel("Max Connection Number per File:"), 1, 0)
+        net_grid.addWidget(QLabel("Max Connection Number per File:"), 2, 0)
         self.cmb_max_conns = QComboBox()
         self.cmb_max_conns.addItems(["1", "2", "4", "8", "16", "24", "32"])
         self.cmb_max_conns.setCurrentText("8")
-        net_grid.addWidget(self.cmb_max_conns, 1, 1)
+        net_grid.addWidget(self.cmb_max_conns, 2, 1)
 
-        net_grid.addWidget(QLabel("Max Simultaneous Downloads:"), 2, 0)
+        net_grid.addWidget(QLabel("Max Simultaneous Downloads:"), 3, 0)
         self.spin_simultaneous = QSpinBox()
         self.spin_simultaneous.setRange(1, 10)
-        self.spin_simultaneous.setValue(2)
-        net_grid.addWidget(self.spin_simultaneous, 2, 1)
+        self.spin_simultaneous.setValue(3)
+        net_grid.addWidget(self.spin_simultaneous, 3, 1)
 
-        net_grid.addWidget(QLabel("Connection Timeout:"), 3, 0)
+        net_grid.addWidget(QLabel("Max Global Streams:"), 4, 0)
+        self.spin_max_global_streams = QSpinBox()
+        self.spin_max_global_streams.setRange(4, 256)
+        self.spin_max_global_streams.setValue(64)
+        net_grid.addWidget(self.spin_max_global_streams, 4, 1)
+
+        net_grid.addWidget(QLabel("Connection Timeout:"), 5, 0)
         self.spin_timeout = QSpinBox()
         self.spin_timeout.setRange(5, 120)
         self.spin_timeout.setValue(15)
         self.spin_timeout.setSuffix(" sec")
-        net_grid.addWidget(self.spin_timeout, 3, 1)
+        net_grid.addWidget(self.spin_timeout, 5, 1)
         conn_vbox.addWidget(grp_net)
 
         grp_speed = QGroupBox("Speed Limiter (Bandwidth Throttling)")
@@ -332,6 +354,13 @@ class SettingsDialog(QDialog):
         self.chk_av.setChecked(self.db.get_setting("antivirus_enabled", "1") == "1")
         self.txt_file_types.setText(self.db.get_setting("auto_file_types", DEFAULT_AUTO_FILE_TYPES))
         self.txt_exceptions.setText(self.db.get_setting("exception_sites", ""))
+        cap_mode = self.db.get_setting("capture_mode", "auto")
+        if cap_mode == "off":
+            self.cmb_capture_mode.setCurrentText("Off (Disabled)")
+        elif cap_mode == "prompt":
+            self.cmb_capture_mode.setCurrentText("Prompt Before Capture")
+        else:
+            self.cmb_capture_mode.setCurrentText("Auto (Capture Eligible Downloads)")
 
         # Save To
         self.txt_def_dir.setText(self.db.get_setting("default_dir", DEFAULT_DOWNLOADS_DIR))
@@ -340,8 +369,16 @@ class SettingsDialog(QDialog):
             txt.setText(self.db.get_setting(f"dir_{cat}", os.path.join(DEFAULT_DOWNLOADS_DIR, cat)))
 
         # Connection
+        conn_mode = self.db.get_setting("connection_mode", "auto")
+        if conn_mode.lower() == "fixed":
+            self.cmb_conn_mode.setCurrentText("Fixed Streams")
+        else:
+            self.cmb_conn_mode.setCurrentText("Auto (Adaptive Dynamic Concurrency)")
+
         self.cmb_max_conns.setCurrentText(self.db.get_setting("default_connections", "8"))
-        self.spin_simultaneous.setValue(int(self.db.get_setting("simultaneous_downloads", "2")))
+        sim_val = self.db.get_setting("simultaneous_downloads") or self.db.get_setting("max_active_downloads", "3")
+        self.spin_simultaneous.setValue(int(sim_val))
+        self.spin_max_global_streams.setValue(int(self.db.get_setting("max_global_streams", "64")))
         self.spin_timeout.setValue(int(self.db.get_setting("timeout", "15")))
         self.chk_speed_limit.setChecked(self.db.get_setting("limit_speed_enabled", "0") == "1")
         self.spin_speed_limit.setValue(int(self.db.get_setting("speed_limit_kb", "1024")))
@@ -379,6 +416,8 @@ class SettingsDialog(QDialog):
         self.db.set_setting("antivirus_enabled", "1" if self.chk_av.isChecked() else "0")
         self.db.set_setting("auto_file_types", self.txt_file_types.text().strip())
         self.db.set_setting("exception_sites", self.txt_exceptions.text().strip())
+        cap_val = "off" if "Off" in self.cmb_capture_mode.currentText() else ("prompt" if "Prompt" in self.cmb_capture_mode.currentText() else "auto")
+        self.db.set_setting("capture_mode", cap_val)
 
         # Save To
         self.db.set_setting("default_dir", self.txt_def_dir.text().strip())
@@ -387,8 +426,12 @@ class SettingsDialog(QDialog):
             self.db.set_setting(f"dir_{cat}", txt.text().strip())
 
         # Connection
+        conn_mode_val = "fixed" if "Fixed" in self.cmb_conn_mode.currentText() else "auto"
+        self.db.set_setting("connection_mode", conn_mode_val)
         self.db.set_setting("default_connections", self.cmb_max_conns.currentText())
         self.db.set_setting("simultaneous_downloads", str(self.spin_simultaneous.value()))
+        self.db.set_setting("max_active_downloads", str(self.spin_simultaneous.value()))
+        self.db.set_setting("max_global_streams", str(self.spin_max_global_streams.value()))
         self.db.set_setting("timeout", str(self.spin_timeout.value()))
         self.db.set_setting("limit_speed_enabled", "1" if self.chk_speed_limit.isChecked() else "0")
         self.db.set_setting("speed_limit_kb", str(self.spin_speed_limit.value()))

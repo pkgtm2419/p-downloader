@@ -15,12 +15,18 @@ DEFAULT_MAX_STREAMS_PER_ROUTE = 16
 
 @dataclass
 class ResourceSnapshot:
-    active_downloads: int
-    active_streams: int
-    origin_stream_counts: Dict[str, int]
-    route_stream_counts: Dict[str, int]
-    global_rate_bps: int
-    total_ingress_bytes: int
+    active_downloads: int = 0
+    active_streams: int = 0
+    origin_stream_counts: Dict[str, int] = field(default_factory=dict)
+    route_stream_counts: Dict[str, int] = field(default_factory=dict)
+    global_rate_bps: int = 0
+    total_ingress_bytes: int = 0
+    throughput: int = 0
+    activeStreams: int = 0
+    perRouteTraffic: Dict[str, int] = field(default_factory=dict)
+    bufferedBytes: int = 0
+    diskQueueBytes: int = 0
+    errorCode: Optional[str] = None
 
 class StreamPermit:
     """Context manager representing an acquired HTTP stream allocation."""
@@ -149,7 +155,7 @@ class ResourceController:
         with self._lock:
             self._total_ingress_bytes += byte_count
 
-    def metrics(self) -> ResourceSnapshot:
+    def snapshot(self) -> ResourceSnapshot:
         with self._lock:
             return ResourceSnapshot(
                 active_downloads=len(self._active_downloads),
@@ -157,5 +163,14 @@ class ResourceController:
                 origin_stream_counts=dict(self._origin_streams),
                 route_stream_counts=dict(self._route_streams),
                 global_rate_bps=self.global_limiter.limit,
-                total_ingress_bytes=self._total_ingress_bytes
+                total_ingress_bytes=self._total_ingress_bytes,
+                throughput=self.global_limiter.limit,
+                activeStreams=self._active_streams,
+                perRouteTraffic=dict(self._route_streams),
+                bufferedBytes=0,
+                diskQueueBytes=0,
+                errorCode=None
             )
+
+    def metrics(self) -> ResourceSnapshot:
+        return self.snapshot()
