@@ -134,13 +134,14 @@ class TestSecurityHardening(unittest.TestCase):
         """SEC-02: Verify that IPC server rejects unauthenticated connection attempts."""
         received = []
         server = IPCServer(callback=lambda msg: received.append(msg))
-        server.start()
+        self.assertTrue(server.start())
 
         try:
             # 1. Send legitimate message via send_to_running_instance (attaches token automatically)
-            send_to_running_instance({"action": "ping", "test": "auth_ok"})
+            ok = send_to_running_instance({"action": "ping", "test": "auth_ok"})
+            self.assertTrue(ok)
             import time
-            time.sleep(0.3)
+            time.sleep(0.1)
             self.assertTrue(any(m.get("test") == "auth_ok" for m in received))
 
             # 2. Simulate raw unauthorized socket attack without token
@@ -149,7 +150,7 @@ class TestSecurityHardening(unittest.TestCase):
             s.connect(("127.0.0.1", 49152))
             s.sendall(json.dumps({"action": "download", "test": "unauthorized_attack"}).encode("utf-8"))
             s.close()
-            time.sleep(0.3)
+            time.sleep(0.1)
 
             # Unauthorized message should have been rejected silently
             self.assertFalse(any(m.get("test") == "unauthorized_attack" for m in received))

@@ -6,6 +6,7 @@ Implements secret token authentication, length-framed requests, and acknowledged
 """
 import os
 import sys
+import time
 import socket
 import json
 import struct
@@ -56,24 +57,34 @@ def get_or_create_ipc_token() -> str:
     except Exception:
         return "pdownloader_fallback_token_local_only"
 
-def send_to_running_instance(message: Dict[str, Any], timeout: float = 1.0) -> bool:
+def send_to_running_instance(
+    message: Dict[str, Any],
+    timeout: float = 1.0,
+    host: str = IPC_HOST,
+    port: int = IPC_PORT
+) -> bool:
     """
     Fire-and-forget message delivery to existing running instance.
     """
     try:
-        res = request_from_running_instance(message, timeout=timeout)
+        res = request_from_running_instance(message, timeout=timeout, host=host, port=port)
         return bool(res and res.get("ok", True))
     except Exception:
         return False
 
-def request_from_running_instance(message: Dict[str, Any], timeout: float = 3.0) -> Optional[Dict[str, Any]]:
+def request_from_running_instance(
+    message: Dict[str, Any],
+    timeout: float = 3.0,
+    host: str = IPC_HOST,
+    port: int = IPC_PORT
+) -> Optional[Dict[str, Any]]:
     """
     Send length-framed request to running instance and await acknowledged response.
     """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
-        s.connect((IPC_HOST, IPC_PORT))
+        s.connect((host, port))
 
         msg_copy = dict(message)
         msg_copy["auth_token"] = get_or_create_ipc_token()
@@ -109,31 +120,65 @@ def request_from_running_instance(message: Dict[str, Any], timeout: float = 3.0)
         return None
 
 class IPCServer:
-    def __init__(self, callback: Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]):
+    def __init__(
+        self,
+        callback: Callable[[Dict[str, Any]], Optional[Dict[str, Any]]],
+        host: str = IPC_HOST,
+        port: int = IPC_PORT
+    ):
         self.callback = callback
+        self.host = host
+        self.port = port
         self.running = False
         self._server_socket: Optional[socket.socket] = None
         self._thread: Optional[threading.Thread] = None
         self.token = get_or_create_ipc_token()
 
-    def start(self) -> bool:
-        try:
-            self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self._server_socket.bind((IPC_HOST, IPC_PORT))
-            self._server_socket.listen(10)
-            self.running = True
+    def start(self, retries: int = 15, retry_delay: float = 0.1) -> bool:
+        for attempt in range(retries):
+            try:
+                self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                if hasattr(socket, "SO_REUSEPORT"):
+                    try:
+                        self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                    except OSError:
+                        pass
+                self._server_socket.bind((self.host, self.port))
+                self._server_socket.listen(10)
+                self._server_socket.settimeout(0.5)
+                self.running = True
 
-            self._thread = threading.Thread(target=self._listen_loop, daemon=True)
-            self._thread.start()
-            return True
-        except Exception:
-            return False
+                self._thread = threading.Thread(target=self._listen_loop, daemon=True)
+                self._thread.start()
+                return True
+            except OSError:
+                if self._server_socket:
+                    try:
+                        self._server_socket.close()
+                    except Exception:
+                        pass
+                    self._server_socket = None
+                if attempt < retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    return False
+            except Exception:
+                return False
+        return False
 
     def _listen_loop(self):
         while self.running and self._server_socket:
             try:
-                client_sock, _ = self._server_socket.accept()
+                try:
+                    client_sock, _ = self._server_socket.accept()
+                except socket.timeout:
+                    continue
+                except (OSError, ValueError):
+                    if not self.running:
+                        break
+                    continue
+
                 client_sock.settimeout(3.0)
 
                 # Peek or read length prefix
@@ -163,7 +208,10 @@ class IPCServer:
                 if not secrets.compare_digest(provided_token, self.token):
                     # Unauthorized: send error and close
                     err_resp = json.dumps({"ok": False, "code": "AUTH_FAILED", "message": "Unauthorized"}).encode("utf-8")
-                    client_sock.sendall(struct.pack(">I", len(err_resp)) + err_resp)
+                    try:
+                        client_sock.sendall(struct.pack(">I", len(err_resp)) + err_resp)
+                    except Exception:
+                        pass
                     client_sock.close()
                     continue
 
@@ -178,7 +226,10 @@ class IPCServer:
                     response = {"ok": True, "code": "OK"}
 
                 resp_bytes = json.dumps(response).encode("utf-8")
-                client_sock.sendall(struct.pack(">I", len(resp_bytes)) + resp_bytes)
+                try:
+                    client_sock.sendall(struct.pack(">I", len(resp_bytes)) + resp_bytes)
+                except Exception:
+                    pass
                 client_sock.close()
 
             except Exception:
@@ -187,9 +238,20 @@ class IPCServer:
 
     def stop(self):
         self.running = False
-        if self._server_socket:
+        sock = self._server_socket
+        self._server_socket = None
+        if sock:
             try:
-                self._server_socket.close()
+                dummy = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                dummy.settimeout(0.2)
+                dummy.connect((self.host, self.port))
+                dummy.close()
             except Exception:
                 pass
-            self._server_socket = None
+            try:
+                sock.close()
+            except Exception:
+                pass
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+            self._thread = None
