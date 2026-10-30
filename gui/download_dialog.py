@@ -403,4 +403,8 @@ class DownloadDialog(QDialog):
     def open_folder(self):
         folder = os.path.dirname(self.task.save_path)
         if os.path.exists(folder):
-            subprocess.run(f'explorer /select,"{self.task.save_path}"')
+            norm_path = os.path.normpath(self.task.save_path)
+            if sys.platform == "win32":
+                subprocess.run(["explorer.exe", f"/select,{norm_path}"], check=False)
+            else:
+                subprocess.run(["xdg-open", folder], check=False)

@@ -11,6 +11,7 @@ import json
 import struct
 import secrets
 import threading
+import subprocess
 from pathlib import Path
 from typing import Callable, Optional, Dict, Any
 
@@ -36,6 +37,19 @@ def get_or_create_ipc_token() -> str:
         if sys.platform != "win32":
             try:
                 os.chmod(TOKEN_FILE, 0o600)
+            except Exception:
+                pass
+        else:
+            try:
+                username = os.environ.get("USERNAME")
+                if username:
+                    subprocess.run(
+                        ["icacls", str(TOKEN_FILE), "/inheritance:r", "/grant:r", f"{username}:(R,W)"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                        creationflags=0x08000000 if sys.platform == "win32" else 0
+                    )
             except Exception:
                 pass
         return token

@@ -2,7 +2,7 @@
 IDM-Style Web Spider & Site Grabber Crawler Engine for P-Downloader.
 Recursively crawls a target URL up to max_depth levels, extracts downloadable assets
 (Video, Audio, Images, Documents, Archives), and feeds discovered links directly into Batch Add.
-Includes SSRF and private IP address filtering (CWE-918 mitigation).
+Includes SSRF and private IP address filtering with redirect protection (CWE-918 mitigation).
 """
 import os
 import re
@@ -24,6 +24,7 @@ DEFAULT_MEDIA_EXTENSIONS = {
 def is_safe_external_url(url: str) -> bool:
     """
     Prevents SSRF and internal port scanning by blocking private/loopback IP addresses.
+    Validates scheme, hostname, IP literals, and resolved DNS addresses.
     """
     try:
         parsed = urlparse(url)
@@ -32,14 +33,24 @@ def is_safe_external_url(url: str) -> bool:
         hostname = parsed.hostname
         if not hostname:
             return False
-        if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        hostname_clean = hostname.strip("[]").lower()
+        if hostname_clean in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
             return False
+
+        # 1. Check if hostname is an IP address literal
         try:
-            ip = ipaddress.ip_address(socket.gethostbyname(hostname))
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            ip = ipaddress.ip_address(hostname_clean)
+        except ValueError:
+            # 2. Resolve DNS for hostname
+            try:
+                resolved_ip = socket.gethostbyname(hostname_clean)
+                ip = ipaddress.ip_address(resolved_ip)
+            except Exception:
                 return False
-        except Exception:
-            pass
+
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return False
+
         return True
     except Exception:
         return False
@@ -54,31 +65,38 @@ class WebSpider:
         stay_on_domain: bool = True,
         max_threads: int = 4
     ):
-        self.start_url = start_url
-        self.max_depth = max(1, min(max_depth, 5))  # Clamp depth 1-5
+        self.start_url = start_url.strip()
+        self.max_depth = max(1, min(max_depth, 5))
         self.stay_on_domain = stay_on_domain
-        self.max_threads = max_threads
+        self.max_threads = max(1, min(max_threads, 16))
+        self.is_cancelled = False
 
         parsed = urlparse(self.start_url)
         self.start_domain = parsed.netloc.lower()
 
-        # Build set of target extensions
+        # Build target extension filter
         self.target_extensions: Set[str] = set()
-        cats = target_categories or ["video", "audio", "archives", "documents"]
-        for cat in cats:
-            if cat in DEFAULT_MEDIA_EXTENSIONS:
-                self.target_extensions.update(DEFAULT_MEDIA_EXTENSIONS[cat])
+        if target_categories:
+            for cat in target_categories:
+                c_lower = cat.lower()
+                if c_lower in DEFAULT_MEDIA_EXTENSIONS:
+                    self.target_extensions.update(DEFAULT_MEDIA_EXTENSIONS[c_lower])
+
         if custom_extensions:
             self.target_extensions.update(ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in custom_extensions)
 
-        self.visited_pages: Set[str] = set()
+        if not self.target_extensions:
+            # Default to all media
+            for ext_set in DEFAULT_MEDIA_EXTENSIONS.values():
+                self.target_extensions.update(ext_set)
+
         self.discovered_items: List[Dict[str, Any]] = []
+        self.visited_pages: Set[str] = set()
         self._seen_urls: Set[str] = set()
-        self.is_cancelled: bool = False
 
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 P-Downloader-Spider/1.0"
         })
 
     def cancel(self):
@@ -86,8 +104,7 @@ class WebSpider:
 
     def crawl(self, progress_callback: Optional[Callable[[str, int], None]] = None) -> List[Dict[str, Any]]:
         """
-        Executes crawl up to self.max_depth.
-        Returns list of discovered file dictionaries.
+        Executes breadth-first crawl starting from start_url up to max_depth.
         """
         if not is_safe_external_url(self.start_url):
             return []
@@ -133,7 +150,27 @@ class WebSpider:
         if not is_safe_external_url(page_url):
             return []
         try:
-            resp = self.session.get(page_url, timeout=12)
+            # Handle redirects manually to validate every redirect target hop against SSRF
+            curr_url = page_url
+            resp = None
+            for _ in range(5):
+                r = self.session.get(curr_url, timeout=12, allow_redirects=False)
+                if r.is_redirect or r.status_code in (301, 302, 303, 307, 308):
+                    loc = r.headers.get("Location")
+                    if not loc:
+                        break
+                    next_url = urljoin(curr_url, loc)
+                    if not is_safe_external_url(next_url):
+                        # Block redirect to internal IP or private host
+                        return []
+                    curr_url = next_url
+                else:
+                    resp = r
+                    break
+
+            if not resp:
+                return []
+
             content_type = resp.headers.get("Content-Type", "").lower()
             if "text/html" not in content_type and "application/xhtml" not in content_type:
                 return []
@@ -146,7 +183,7 @@ class WebSpider:
                 if link.startswith("data:") or link.startswith("javascript:") or link.startswith("#"):
                     continue
 
-                full_url = urljoin(page_url, link)
+                full_url = urljoin(curr_url, link)
                 parsed = urlparse(full_url)
                 if parsed.scheme not in ("http", "https"):
                     continue
@@ -165,7 +202,7 @@ class WebSpider:
                             "filename": fn,
                             "url": full_url,
                             "type": ext.lstrip(".").upper(),
-                            "source_page": page_url
+                            "source_page": curr_url
                         })
                 elif not ext or ext in (".html", ".htm", ".php", ".asp", ".aspx"):
                     # Potential next page link

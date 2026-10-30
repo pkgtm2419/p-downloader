@@ -11,12 +11,30 @@ import hashlib
 import sqlite3
 from typing import Dict, List, Optional, Any
 from urllib.parse import urlparse
+from pathlib import Path
 from .db import DownloadDB, DB_PATH
 
 def _get_fernet_key() -> bytes:
-    seed = (os.environ.get('USER', '') + os.environ.get('USERNAME', '') + 'pdownloader_vault_seed_v1').encode('utf-8')
-    h = hashlib.sha256(seed).digest()
-    return base64.urlsafe_b64encode(h)
+    key_file = Path.home() / ".pdownloader" / ".vault_key"
+    try:
+        if key_file.is_file():
+            k = key_file.read_bytes().strip()
+            if len(k) == 44:
+                return k
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        from cryptography.fernet import Fernet
+        k = Fernet.generate_key()
+        key_file.write_bytes(k)
+        if sys.platform != "win32":
+            try:
+                os.chmod(key_file, 0o600)
+            except Exception:
+                pass
+        return k
+    except Exception:
+        seed = (os.environ.get('USER', '') + os.environ.get('USERNAME', '') + 'pdownloader_vault_seed_v1').encode('utf-8')
+        h = hashlib.sha256(seed).digest()
+        return base64.urlsafe_b64encode(h)
 
 def encrypt_secret(plain_text: str) -> str:
     """

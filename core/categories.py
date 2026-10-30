@@ -15,10 +15,17 @@ CATEGORY_EXTENSIONS = {
 
 DEFAULT_DOWNLOADS_DIR = str(Path.home() / "Downloads" / "P-Downloader")
 
+WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+}
+
 def sanitize_filename(filename: str, default: str = "download.bin") -> str:
     """
     Sanitizes untrusted filenames from URLs and Content-Disposition headers.
-    Strips directory traversal sequences, illegal OS characters, and control codes.
+    Strips directory traversal sequences, illegal OS characters, control codes,
+    and DOS/Windows reserved device names.
     """
     if not filename:
         return default
@@ -33,6 +40,11 @@ def sanitize_filename(filename: str, default: str = "download.bin") -> str:
     # 4. Check if filename was reduced to empty or dangerous dot names
     if not clean or clean in (".", ".."):
         return default
+
+    # 5. Neutralize Windows reserved device names (e.g., con.zip, aux.mp4, prn.tar.gz)
+    base_stem = clean.split(".")[0].strip()
+    if base_stem.upper() in WINDOWS_RESERVED_NAMES:
+        clean = f"_{clean}"
     
     return clean
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "P-Downloader Integration Module",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Ultra download accelerator with in-page video sniffer, HLS streaming capture, and multi-threaded parallel downloads.",
   "browser_specific_settings": {
     "gecko": {
