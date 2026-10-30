@@ -49,7 +49,44 @@ function decideEligibility(downloadItem, settings = {}) {
   return { eligible: true, reason: 'OK' };
 }
 
+function classifyDownload(url, method = 'GET', browserOrigin = '', contentType = '', options = {}) {
+  if (!url) {
+    return { captureable: false, reason: 'NO_URL' };
+  }
+
+  // Scheme checks
+  const schemeMatch = url.match(/^([a-z0-9+.-]+):/i);
+  const scheme = schemeMatch ? schemeMatch[1].toLowerCase() : '';
+  if (scheme === 'blob' || scheme === 'data') {
+    return { captureable: false, reason: 'UNSUPPORTED_SCHEME' };
+  }
+  if (scheme !== 'http' && scheme !== 'https') {
+    return { captureable: false, reason: 'UNSUPPORTED_SCHEME' };
+  }
+
+  // Method checks
+  const normMethod = (method || 'GET').toUpperCase();
+  if (normMethod !== 'GET') {
+    return { captureable: false, reason: 'UNSUPPORTED_METHOD' };
+  }
+
+  // Content-Type checks (ignore non-attachment HTML pages)
+  if (contentType) {
+    const ct = contentType.toLowerCase();
+    if ((ct.includes('text/html') || ct.includes('application/xhtml+xml')) && !options.isAttachment) {
+      return { captureable: false, reason: 'HTML_DOCUMENT' };
+    }
+  }
+
+  // Incognito/private checks
+  if (options.isPrivate && options.allowIncognito === false) {
+    return { captureable: false, reason: 'INCOGNITO_RESTRICTED' };
+  }
+
+  return { captureable: true, reason: 'ELIGIBLE' };
+}
+
 // Support both ES Modules and CommonJS
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { decideEligibility };
+  module.exports = { decideEligibility, classifyDownload };
 }

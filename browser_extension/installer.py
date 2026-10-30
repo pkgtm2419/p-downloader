@@ -7,7 +7,8 @@ import sys
 import json
 import stat
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
+from dataclasses import dataclass
 
 try:
     import winreg
@@ -16,6 +17,14 @@ except ImportError:
 
 HOST_NAME = "com.pdownloader.host"
 EXTENSION_ID = "mngjniiiieccogdpplbdmmmmnemocbkb"
+FIREFOX_EXTENSION_ID = "pdownloader@ultra.download"
+
+@dataclass
+class InstallResult:
+    success: bool
+    manifest_path: str
+    browser: str
+    error: Optional[str] = None
 
 WINDOWS_BROWSERS = {
     "chrome": {
@@ -215,6 +224,97 @@ def install_native_manifest(selected_browsers: List[str] = None):
                 pass
 
     return str(manifest_file)
+
+
+def register_native_host(
+    browser_family: str,
+    extension_id: str = EXTENSION_ID,
+    binary_path: Optional[str] = None
+) -> InstallResult:
+    """
+    Register native messaging host for a specific browser family and extension ID.
+    Returns InstallResult with status and manifest path.
+    """
+    b_key = browser_family.lower().strip()
+    is_firefox = (b_key == "firefox")
+    project_root = Path(__file__).parent.parent
+    is_win = (sys.platform == "win32")
+
+    target_dir = Path.home() / ".pdownloader"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_name = f"{HOST_NAME}.firefox.json" if is_firefox else f"{HOST_NAME}.json"
+    manifest_file = target_dir / manifest_name
+
+    # Determine executable path
+    if binary_path:
+        target_path = binary_path
+    else:
+        if getattr(sys, "frozen", False):
+            p_exe = Path(sys.executable)
+        else:
+            app_dir = Path(sys.executable).parent
+            p_exe = app_dir / ("P-Downloader.exe" if is_win else "P-Downloader")
+            if not p_exe.exists():
+                p_exe = project_root / "dist" / "P-Downloader" / ("P-Downloader.exe" if is_win else "P-Downloader")
+            if not p_exe.exists():
+                p_exe = project_root / ("P-Downloader.exe" if is_win else "P-Downloader")
+
+        script_path = str((Path(__file__).parent / "pdownloader_native_host.py").resolve())
+        if is_win:
+            launcher_path = target_dir / "pdownloader_host.bat"
+            if p_exe.exists():
+                target_path = str(p_exe.resolve())
+                with open(launcher_path, "w", encoding="utf-8") as f:
+                    f.write(f'@echo off\r\nsetlocal\r\nset PYTHONUNBUFFERED=1\r\n"{p_exe.resolve()}" --native-host %*\r\n')
+            else:
+                python_exe = sys.executable
+                target_path = str(launcher_path.resolve())
+                with open(launcher_path, "w", encoding="utf-8") as f:
+                    f.write(f'@echo off\r\nsetlocal\r\nset PYTHONUNBUFFERED=1\r\n"{python_exe}" -u "{script_path}" %*\r\n')
+        else:
+            launcher_path = target_dir / "pdownloader_host.sh"
+            if p_exe.exists():
+                target_path = str(p_exe.resolve())
+            else:
+                python_exe = sys.executable
+                target_path = str(launcher_path.resolve())
+                with open(launcher_path, "w", encoding="utf-8") as f:
+                    f.write(f'#!/bin/bash\nexec "{python_exe}" -u "{script_path}" "$@"\n')
+                current_stat = os.stat(launcher_path)
+                os.chmod(launcher_path, current_stat.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+    try:
+        if is_firefox:
+            eff_ext_id = extension_id if extension_id != EXTENSION_ID else FIREFOX_EXTENSION_ID
+            manifest_data = {
+                "name": HOST_NAME,
+                "description": "P-Downloader Ultra Native Messaging Host",
+                "path": target_path,
+                "type": "stdio",
+                "allowed_extensions": [eff_ext_id]
+            }
+        else:
+            manifest_data = {
+                "name": HOST_NAME,
+                "description": "P-Downloader Ultra Native Messaging Host",
+                "path": target_path,
+                "type": "stdio",
+                "allowed_origins": [f"chrome-extension://{extension_id}/"]
+            }
+
+        with open(manifest_file, "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2)
+
+        if is_win and winreg and b_key in WINDOWS_BROWSERS:
+            reg_path = WINDOWS_BROWSERS[b_key]["reg_path"]
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, reg_path)
+            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, str(manifest_file))
+            winreg.CloseKey(key)
+
+        return InstallResult(success=True, manifest_path=str(manifest_file), browser=b_key)
+    except Exception as e:
+        return InstallResult(success=False, manifest_path=str(manifest_file), browser=b_key, error=str(e))
 
 
 if __name__ == "__main__":

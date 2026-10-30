@@ -4,9 +4,6 @@
   "path": "pdownloader-host.exe",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://*/"
-  ],
-  "allowed_extensions": [
-    "pdownloader@ultra.download"
+    "chrome-extension://mngjniiiieccogdpplbdmmmmnemocbkb/"
   ]
 }

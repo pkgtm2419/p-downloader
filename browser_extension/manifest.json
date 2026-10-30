@@ -66,6 +66,7 @@
       ],
       "js": [
         "media-choices.js",
+        "link_capture.js",
         "content.js"
       ],
       "all_frames": true,
