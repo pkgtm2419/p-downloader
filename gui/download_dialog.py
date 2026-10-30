@@ -4,6 +4,7 @@ Features real-time progress syncing, multi-connection segment visualizer,
 background tray minimize, and direct file/folder launching.
 """
 import os
+import sys
 import subprocess
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,

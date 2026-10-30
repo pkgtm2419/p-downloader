@@ -80,7 +80,7 @@ jobs:
 
       - name: Run browser extension tests
         run: |
-          node --test tests/browser/*.test.mjs
+          node --test tests/browser
 
   build-check:
     name: Build Verification (Windows PyInstaller)
