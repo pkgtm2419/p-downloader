@@ -57,10 +57,10 @@ class QuickPromptDialog(QDialog):
 
         # Header with Logo & Close
         header = QHBoxLayout()
-        lbl_title = QLabel("⚡ <b>P-Downloader Ultra</b>")
-        lbl_title.setStyleSheet("color: #64B5F6; font-size: 13px; border: none;")
+        lbl_title = QLabel("<b>P-Downloader Ultra</b>")
+        lbl_title.setStyleSheet("color: #2563EB; font-size: 13px; border: none;")
         
-        btn_close = QPushButton("✕")
+        btn_close = QPushButton("X")
         btn_close.setFixedSize(20, 20)
         btn_close.setStyleSheet("""
             QPushButton {

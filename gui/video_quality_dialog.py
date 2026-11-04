@@ -106,7 +106,7 @@ class VideoQualityDialog(QDialog):
             url = v.get("url", "")
 
             # Highlight 1080p/4K
-            res_item = QTableWidgetItem(f"⭐ {res}" if "1080" in res or "2160" in res else res)
+            res_item = QTableWidgetItem(f"[HD] {res}" if "1080" in res or "2160" in res else res)
             self.table.setItem(row, 0, res_item)
             self.table.setItem(row, 1, QTableWidgetItem(bw_str))
             self.table.setItem(row, 2, QTableWidgetItem(codecs))

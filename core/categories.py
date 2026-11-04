@@ -1,9 +1,10 @@
 """
-File category mapping and directory resolution with path traversal sanitization.
+File category mapping, directory resolution, filename sanitization and conflict resolution.
 """
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 CATEGORY_EXTENSIONS = {
     "Compressed": [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".tgz"],
@@ -21,32 +22,72 @@ WINDOWS_RESERVED_NAMES = {
     "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
 }
 
-def sanitize_filename(filename: str, default: str = "download.bin") -> str:
+GENERIC_ROUTE_NAMES = {
+    "watch", "videoplayback", "download", "index", "index.html", "index.php",
+    "view", "get", "media", "stream", "play", "file", "asset"
+}
+
+
+def sanitize_filename(filename: str, default: str = "download.bin", max_stem_len: int = 180) -> str:
     """
     Sanitizes untrusted filenames from URLs and Content-Disposition headers.
     Strips directory traversal sequences, illegal OS characters, control codes,
-    and DOS/Windows reserved device names.
+    and DOS/Windows reserved device names. Truncates excessively long stems.
     """
     if not filename:
         return default
-    
+
     # 1. Normalize path separators and extract basename only
     clean = os.path.basename(filename.replace("\\", "/"))
     # 2. Strip null bytes and whitespace/dots
     clean = clean.replace("\x00", "").strip(". ")
     # 3. Remove illegal Windows & Unix filename characters: < > : " / \ | ? *
     clean = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', clean)
-    
+
     # 4. Check if filename was reduced to empty or dangerous dot names
     if not clean or clean in (".", ".."):
         return default
 
+    stem, ext = os.path.splitext(clean)
+    # Truncate overly long stems to protect Windows MAX_PATH limits
+    if len(stem) > max_stem_len:
+        stem = stem[:max_stem_len].rstrip(". ")
+        clean = f"{stem}{ext}"
+
     # 5. Neutralize Windows reserved device names (e.g., con.zip, aux.mp4, prn.tar.gz)
-    base_stem = clean.split(".")[0].strip()
-    if base_stem.upper() in WINDOWS_RESERVED_NAMES:
+    first_token = clean.split(".")[0].strip().upper()
+    if first_token in WINDOWS_RESERVED_NAMES:
         clean = f"_{clean}"
-    
+
     return clean
+
+
+def resolve_unique_filename(directory: str, filename: str) -> str:
+    """
+    Ensures filename does not collide with existing files on disk.
+    Appends incrementing numeric suffix (e.g., 'Video (1).mp4') if file exists.
+    """
+    safe_fn = sanitize_filename(filename)
+    dest_path = os.path.join(directory, safe_fn)
+    if not os.path.exists(dest_path):
+        return safe_fn
+
+    stem, ext = os.path.splitext(safe_fn)
+    counter = 1
+    while True:
+        candidate = f"{stem} ({counter}){ext}"
+        if not os.path.exists(os.path.join(directory, candidate)):
+            return candidate
+        counter += 1
+
+
+def is_generic_route_name(name: str) -> bool:
+    """Checks whether a string is a meaningless URL route instead of a true file name."""
+    if not name:
+        return True
+    clean = name.lower().strip().split("?")[0].split("#")[0]
+    return clean in GENERIC_ROUTE_NAMES or clean.endswith((".php", ".asp", ".aspx", ".jsp", ".do"))
+
 
 def get_category_for_filename(filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
@@ -55,7 +96,8 @@ def get_category_for_filename(filename: str) -> str:
             return category
     return "General"
 
-def get_default_save_path(filename: str, category: str = None) -> str:
+
+def get_default_save_path(filename: str, category: Optional[str] = None) -> str:
     """
     Calculates safe destination path inside DEFAULT_DOWNLOADS_DIR.
     Guarantees canonical target path cannot escape the category directory.
@@ -63,15 +105,19 @@ def get_default_save_path(filename: str, category: str = None) -> str:
     safe_fn = sanitize_filename(filename)
     if not category:
         category = get_category_for_filename(safe_fn)
-    
+
     base_dir = (Path(DEFAULT_DOWNLOADS_DIR) / category).resolve()
-    base_dir.mkdir(parents=True, exist_ok=True)
-    
+    try:
+        base_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        base_dir = (Path(os.getcwd()) / 'downloads' / category).resolve()
+        base_dir.mkdir(parents=True, exist_ok=True)
+
     target_path = (base_dir / safe_fn).resolve()
     # Path traversal assertion: target must strictly be inside base_dir
     try:
         target_path.relative_to(base_dir)
     except ValueError:
         target_path = base_dir / "download.bin"
-        
+
     return str(target_path)

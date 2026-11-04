@@ -24,3 +24,9 @@ dev = [
     "pytest>=7.4.0",
     "flake8>=6.1.0"
 ]
+
+[tool.pylint.main]
+extension-pkg-allow-list = ["PyQt6"]
+
+[tool.pylint."messages control"]
+disable = ["no-name-in-module"]

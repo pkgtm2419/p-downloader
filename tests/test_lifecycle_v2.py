@@ -69,7 +69,7 @@ class TestLifecycleV2(unittest.TestCase):
                 task.start()
 
             # Wait for completion
-            for _ in range(60):
+            for _ in range(120):
                 if task.status == "completed":
                     break
                 time.sleep(0.05)

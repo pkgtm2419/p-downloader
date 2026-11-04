@@ -10,44 +10,13 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from core.credentials_manager import CredentialsManager
+from .icons import get_icon, COLOR_SLATE, COLOR_WHITE, COLOR_DANGER
 
 class SiteLoginEditDialog(QDialog):
     def __init__(self, parent=None, domain="", username="", password="", auth_type="basic", token=""):
         super().__init__(parent)
         self.setWindowTitle("Site Credential Entry")
         self.resize(400, 260)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1e2430;
-                color: #e2e8f0;
-            }
-            QLabel {
-                color: #e2e8f0;
-                font-size: 13px;
-            }
-            QLineEdit, QComboBox {
-                background-color: #0f172a;
-                border: 1px solid #334155;
-                border-radius: 6px;
-                padding: 6px 10px;
-                color: #f8fafc;
-                font-size: 13px;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                border: 1px solid #10b981;
-            }
-            QPushButton {
-                background-color: #059669;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #10b981;
-            }
-        """)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
@@ -188,17 +157,20 @@ class SiteLoginsDialog(QDialog):
         layout.addWidget(self.table)
 
         btn_bar = QHBoxLayout()
-        self.btn_add = QPushButton("➕ Add Site...")
+        self.btn_add = QPushButton("Add Site...")
+        self.btn_add.setIcon(get_icon("plus", COLOR_WHITE, 16))
         self.btn_add.clicked.connect(self._add_site)
         btn_bar.addWidget(self.btn_add)
 
-        self.btn_edit = QPushButton("✏️ Edit...")
-        self.btn_edit.setObjectName("btnSecondary")
+        self.btn_edit = QPushButton("Edit...")
+        self.btn_edit.setObjectName("secondaryBtn")
+        self.btn_edit.setIcon(get_icon("settings", COLOR_SLATE, 16))
         self.btn_edit.clicked.connect(self._edit_site)
         btn_bar.addWidget(self.btn_edit)
 
-        self.btn_delete = QPushButton("🗑️ Remove")
-        self.btn_delete.setObjectName("btnSecondary")
+        self.btn_delete = QPushButton("Remove")
+        self.btn_delete.setObjectName("secondaryBtn")
+        self.btn_delete.setIcon(get_icon("trash-2", COLOR_DANGER, 16))
         self.btn_delete.clicked.connect(self._delete_site)
         btn_bar.addWidget(self.btn_delete)
 
