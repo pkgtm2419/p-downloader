@@ -19,6 +19,7 @@ from PyQt6.QtGui import QIcon, QFont, QPixmap
 
 from core.db import DownloadDB
 from browser_extension.installer import detect_installed_browsers, install_native_manifest
+from .icons import get_icon, COLOR_WHITE
 
 RESOURCES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources"))
 
@@ -204,7 +205,8 @@ class IntegrationPromptDialog(QDialog):
         btn_later.clicked.connect(self.reject)
         btn_layout.addWidget(btn_later)
 
-        btn_apply = QPushButton("🚀 Apply && Start P-Downloader", self)
+        btn_apply = QPushButton("Apply && Start P-Downloader", self)
+        btn_apply.setIcon(get_icon("play", COLOR_WHITE, 16))
         btn_apply.clicked.connect(self._apply_settings)
         btn_layout.addWidget(btn_apply)
 

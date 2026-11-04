@@ -14,6 +14,7 @@ from PyQt6.QtGui import QIcon, QFont, QPixmap
 from PyQt6.QtCore import Qt, QTimer
 from core.segment import DownloadTask
 from .styles import format_bytes, format_speed, format_eta
+from .icons import get_icon, COLOR_SLATE, COLOR_WHITE, COLOR_DANGER
 
 RESOURCES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources"))
 
@@ -186,7 +187,7 @@ class DownloadDialog(QDialog):
 
         dir_name = os.path.dirname(self.task.save_path)
         dir_display = dir_name if len(dir_name) <= 55 else (dir_name[:52] + "...")
-        lbl_dir = QLabel(f"📁 Save to: <span style='color:#64748b;'>{dir_display}</span>")
+        lbl_dir = QLabel(f"Save to: <span style='color:#64748B;'>{dir_display}</span>")
         lbl_dir.setStyleSheet("font-size: 11px;")
         f_layout.addWidget(lbl_dir)
         main_layout.addWidget(card_file)
@@ -253,29 +254,33 @@ class DownloadDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        self.btn_pause = QPushButton("⏸️ Pause")
+        self.btn_pause = QPushButton("Pause")
+        self.btn_pause.setIcon(get_icon("pause", COLOR_SLATE, 16))
         self.btn_pause.clicked.connect(self.toggle_pause)
         btn_layout.addWidget(self.btn_pause)
 
-        self.btn_stop = QPushButton("⏹️ Stop")
+        self.btn_stop = QPushButton("Stop")
         self.btn_stop.setObjectName("secondaryBtn")
+        self.btn_stop.setIcon(get_icon("square", COLOR_SLATE, 16))
         self.btn_stop.clicked.connect(self.stop_download)
         btn_layout.addWidget(self.btn_stop)
 
-        self.btn_delete = QPushButton("❌ Delete")
+        self.btn_delete = QPushButton("Delete")
         self.btn_delete.setObjectName("secondaryBtn")
-        self.btn_delete.setStyleSheet("QPushButton#secondaryBtn:hover { background-color: #ef4444; color: white; border-color: #ef4444; }")
+        self.btn_delete.setIcon(get_icon("trash-2", COLOR_DANGER, 16))
         self.btn_delete.clicked.connect(self.delete_download)
         btn_layout.addWidget(self.btn_delete)
 
-        self.btn_minimize = QPushButton("⬇️ To Tray")
+        self.btn_minimize = QPushButton("To Tray")
         self.btn_minimize.setObjectName("secondaryBtn")
+        self.btn_minimize.setIcon(get_icon("download", COLOR_SLATE, 16))
         self.btn_minimize.setToolTip("Minimize to background system tray while maintaining ultra-speed acceleration")
         self.btn_minimize.clicked.connect(self.close)
         btn_layout.addWidget(self.btn_minimize)
 
-        self.btn_refresh = QPushButton("🔄 Refresh Address")
+        self.btn_refresh = QPushButton("Refresh Address")
         self.btn_refresh.setObjectName("secondaryBtn")
+        self.btn_refresh.setIcon(get_icon("rotate-cw", COLOR_SLATE, 16))
         self.btn_refresh.setToolTip("Update expired download URL without losing progress")
         self.btn_refresh.clicked.connect(self._on_refresh_clicked)
         self.btn_refresh.setVisible(False)
@@ -283,13 +288,15 @@ class DownloadDialog(QDialog):
 
         btn_layout.addStretch()
 
-        self.btn_open_file = QPushButton("📄 Open")
+        self.btn_open_file = QPushButton("Open")
+        self.btn_open_file.setIcon(get_icon("external-link", COLOR_WHITE, 16))
         self.btn_open_file.setEnabled(False)
         self.btn_open_file.clicked.connect(self.open_file)
         btn_layout.addWidget(self.btn_open_file)
 
-        self.btn_open_folder = QPushButton("📁 Folder")
+        self.btn_open_folder = QPushButton("Folder")
         self.btn_open_folder.setObjectName("secondaryBtn")
+        self.btn_open_folder.setIcon(get_icon("folder", COLOR_SLATE, 16))
         self.btn_open_folder.setEnabled(False)
         self.btn_open_folder.clicked.connect(self.open_folder)
         btn_layout.addWidget(self.btn_open_folder)
@@ -340,17 +347,20 @@ class DownloadDialog(QDialog):
             self.btn_open_file.setEnabled(True)
             self.btn_open_folder.setEnabled(True)
         elif self.task.status == "paused":
-            self.btn_pause.setText("▶️ Resume")
+            self.btn_pause.setText("Resume")
+            self.btn_pause.setIcon(get_icon("play", COLOR_SLATE, 16))
             self.btn_pause.setEnabled(True)
             self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(False)
         elif self.task.status == "downloading":
-            self.btn_pause.setText("⏸️ Pause")
+            self.btn_pause.setText("Pause")
+            self.btn_pause.setIcon(get_icon("pause", COLOR_SLATE, 16))
             self.btn_pause.setEnabled(True)
             self.btn_stop.setEnabled(True)
             self.btn_refresh.setVisible(False)
         elif self.task.status in ("error", "cancelled"):
-            self.btn_pause.setText("▶️ Resume")
+            self.btn_pause.setText("Resume")
+            self.btn_pause.setIcon(get_icon("play", COLOR_SLATE, 16))
             self.btn_pause.setEnabled(True)
             self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(True)

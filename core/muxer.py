@@ -50,6 +50,16 @@ class FFmpegMuxer:
                 cls._cached_path = cand
                 return cand
 
+        # 3. Check imageio_ffmpeg if installed
+        try:
+            import imageio_ffmpeg
+            exe = imageio_ffmpeg.get_ffmpeg_exe()
+            if exe and os.path.isfile(exe):
+                cls._cached_path = exe
+                return exe
+        except Exception:
+            pass
+
         return None
 
     @classmethod

@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from core.db import DownloadDB
 from core.categories import DEFAULT_DOWNLOADS_DIR, CATEGORY_EXTENSIONS
 from core.network_binder import NetworkManager
+from .icons import get_icon, COLOR_SLATE
 
 DEFAULT_AUTO_FILE_TYPES = (
     "3GP 7Z AAC ACE AIF ARJ ASF AVI BIN BZ2 EXE GZ GZIP IMG ISO LZH M4A M4V "
@@ -301,8 +302,9 @@ class SettingsDialog(QDialog):
         self.table_adapters.horizontalHeader().setStretchLastSection(True)
         b_layout.addWidget(self.table_adapters)
 
-        btn_refresh_adapters = QPushButton("🔄 Scan & Refresh Network Adapters")
+        btn_refresh_adapters = QPushButton("Scan & Refresh Network Adapters")
         btn_refresh_adapters.setObjectName("secondaryBtn")
+        btn_refresh_adapters.setIcon(get_icon("rotate-cw", COLOR_SLATE, 16))
         btn_refresh_adapters.clicked.connect(self._refresh_adapters_table)
         b_layout.addWidget(btn_refresh_adapters)
 

@@ -59,16 +59,19 @@ def run_cli(args):
 
 def run_gui(initial_url: str = "", start_tray: bool = False):
     from PyQt6.QtWidgets import QApplication, QSystemTrayIcon
-    from PyQt6.QtGui import QIcon
+    from PyQt6.QtGui import QIcon, QFont
     from PyQt6.QtCore import QTimer
     from gui.main_window import MainWindow
     from gui.integration_prompt_dialog import IntegrationPromptDialog
     from core.ipc import IPCServer
 
+    from gui.styles import MAIN_STYLESHEET
     app = QApplication(sys.argv)
     app.setApplicationName("P-Downloader")
     app.setOrganizationName("PDownloader")
     app.setQuitOnLastWindowClosed(False)
+    app.setFont(QFont('Segoe UI', 10))
+    app.setStyleSheet(MAIN_STYLESHEET)
 
     icon_path = os.path.join(os.path.dirname(__file__), "resources", "logo.ico")
     if not os.path.exists(icon_path):

@@ -1,18 +1,33 @@
 """
 Central Download Engine controlling queues, persistence, and task lifecycles.
 """
+import os
 import uuid
 import threading
 from typing import Dict, List, Optional, Callable
 from .db import DownloadDB
 from .segment import DownloadTask, probe_url
-from .categories import get_category_for_filename, get_default_save_path
+from .categories import (
+    get_category_for_filename,
+    get_default_save_path,
+    sanitize_filename,
+    resolve_unique_filename,
+    is_generic_route_name
+)
+
 
 class DownloadEngine:
     def __init__(self, db: Optional[DownloadDB] = None):
         self.db = db or DownloadDB()
         self.tasks: Dict[str, DownloadTask] = {}
         self.listeners: List[Callable[[DownloadTask], None]] = []
+
+        # Reconcile any orphaned 'downloading' tasks on startup
+        try:
+            with self.db.conn:
+                self.db.conn.execute("UPDATE downloads SET status = 'paused' WHERE status = 'downloading'")
+        except Exception:
+            pass
 
     def add_listener(self, callback: Callable[[DownloadTask], None]):
         self.listeners.append(callback)
@@ -29,7 +44,6 @@ class DownloadEngine:
         request,
         auto_start: bool = True
     ) -> DownloadTask:
-        from core.download_models import DownloadRequest
         return self.create_download(
             url=request.url,
             filename=request.filename,
@@ -49,19 +63,58 @@ class DownloadEngine:
         page_url: Optional[str] = None,
         quality: Optional[str] = None
     ) -> DownloadTask:
-        # Check YouTube URL
         from core.youtube_downloader import is_youtube_url
         is_yt = is_youtube_url(url) or (page_url and is_youtube_url(page_url))
 
-        # Probe metadata if filename/save_path not specified
-        if not filename or not save_path:
-            info = probe_url(page_url if (page_url and is_yt) else url)
-            if not filename:
-                filename = info["filename"]
-            if not category:
-                category = get_category_for_filename(filename)
-            if not save_path:
-                save_path = get_default_save_path(filename, category)
+        # Check if filename is missing or a generic route name (like 'watch')
+        needs_filename = not filename or is_generic_route_name(filename)
+        if needs_filename or not save_path:
+            info = None
+            try:
+                info = probe_url(page_url if (page_url and is_yt) else url)
+                if needs_filename and info and info.get("filename"):
+                    cand = info["filename"]
+                    if not is_generic_route_name(cand):
+                        filename = cand
+                        needs_filename = False
+            except Exception:
+                pass
+
+            if needs_filename:
+                if is_yt:
+                    is_audio = quality and "audio" in quality.lower()
+                    filename = "YouTube_Audio.mp3" if is_audio else "YouTube_Video.mp4"
+                else:
+                    import urllib.parse
+                    clean_part = urllib.parse.urlparse(url).path.rstrip("/").split("/")[-1].split("?")[0]
+                    if clean_part and not is_generic_route_name(clean_part):
+                        filename = clean_part
+                    else:
+                        filename = "download.bin"
+
+        # Ensure correct extension for YouTube and media
+        if is_yt:
+            is_audio = (quality and "audio" in quality.lower()) or (save_path and save_path.lower().endswith((".mp3", ".m4a")))
+            valid_exts = (".mp3", ".m4a") if is_audio else (".mp4", ".mkv", ".webm")
+            if not any(filename.lower().endswith(ext) for ext in valid_exts):
+                stem = os.path.splitext(filename)[0]
+                filename = f"{stem}.mp3" if is_audio else f"{stem}.mp4"
+
+        filename = sanitize_filename(filename)
+
+        if not category:
+            category = get_category_for_filename(filename)
+
+        if not save_path:
+            save_path = get_default_save_path(filename, category)
+
+        # Prevent silent overwriting
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            unique_name = resolve_unique_filename(save_dir, os.path.basename(save_path))
+            save_path = os.path.join(save_dir, unique_name)
+            filename = unique_name
 
         task_id = str(uuid.uuid4())[:8]
 
@@ -82,7 +135,6 @@ class DownloadEngine:
         # Automatic HLS / M3U8 routing
         elif ".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8")):
             from core.hls_downloader import HLSDownloadTask
-            # Ensure target filename is .mp4
             if save_path.lower().endswith(".m3u8"):
                 save_path = save_path[:-5] + ".mp4"
             if filename.lower().endswith(".m3u8"):
@@ -107,6 +159,7 @@ class DownloadEngine:
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
             )
+
         task.prepare()
 
         # Save to database
@@ -141,19 +194,31 @@ class DownloadEngine:
     def resume_download(self, task_id: str):
         task = self.tasks.get(task_id)
         if not task:
-            # Reconstruct task from DB
             row = self.db.get_download(task_id)
             if not row:
                 return
-            task = DownloadTask(
-                task_id=task_id,
-                url=row["url"],
-                save_path=row["save_path"],
-                connections=row.get("connections", 8),
-                on_progress=self._on_task_progress,
-                on_complete=self._on_task_complete,
-                on_error=self._on_task_error
-            )
+            from core.youtube_downloader import is_youtube_url
+            if is_youtube_url(row["url"]):
+                from core.youtube_downloader import YouTubeDownloadTask
+                task = YouTubeDownloadTask(
+                    task_id=task_id,
+                    url=row["url"],
+                    save_path=row["save_path"],
+                    connections=row.get("connections", 8),
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
+            else:
+                task = DownloadTask(
+                    task_id=task_id,
+                    url=row["url"],
+                    save_path=row["save_path"],
+                    connections=row.get("connections", 8),
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
             task.prepare()
             self.tasks[task_id] = task
 
@@ -161,22 +226,24 @@ class DownloadEngine:
         self.db.update_status(task_id, "downloading")
         self._notify_listeners(task)
 
-    def delete_download(self, task_id: str, delete_file: bool = False):
-        if task_id in self.tasks:
-            task = self.tasks[task_id]
+    def stop_download(self, task_id: str, delete_file: bool = False):
+        task = self.tasks.get(task_id)
+        if task:
             task.cancel()
-            del self.tasks[task_id]
-        
         row = self.db.get_download(task_id)
-        if row and delete_file:
-            import os
-            if os.path.exists(row["save_path"]):
-                try:
-                    os.remove(row["save_path"])
-                except Exception:
-                    pass
-
+        save_path = row["save_path"] if row else None
         self.db.delete_download(task_id)
+        self.tasks.pop(task_id, None)
+
+        if delete_file and save_path and os.path.exists(save_path):
+            try:
+                os.remove(save_path)
+            except Exception:
+                pass
+
+        if task:
+            task.status = "cancelled"
+            self._notify_listeners(task)
 
     def pause_all(self):
         for task in list(self.tasks.values()):
@@ -184,20 +251,14 @@ class DownloadEngine:
                 self.pause_download(task.task_id)
 
     def resume_all(self):
-        # Resume active tasks
         for task in list(self.tasks.values()):
             if task.status == "paused":
                 self.resume_download(task.task_id)
-        # Check DB for queued or paused
         for row in self.db.get_all_downloads():
             if row["status"] in ("paused", "queued") and row["id"] not in self.tasks:
                 self.resume_download(row["id"])
 
     def refresh_download(self, task_id: str, new_url: str, resume_now: bool = True) -> bool:
-        """
-        Updates the URL of an expired or existing task, updates SQLite DB and metadata,
-        and seamlessly resumes download from exact previous offsets.
-        """
         self.db.update_url(task_id, new_url)
         task = self.tasks.get(task_id)
         if task:
@@ -226,9 +287,6 @@ class DownloadEngine:
         return True
 
     def set_speed_limit(self, limit_bytes_per_sec: int):
-        """
-        Applies a speed limit across all active tasks.
-        """
         for task in self.tasks.values():
             task.set_speed_limit(limit_bytes_per_sec)
 
@@ -239,7 +297,6 @@ class DownloadEngine:
         self.db.update_status(task.task_id, "completed", task.total_bytes)
         self._notify_listeners(task)
 
-        # Post-download security scan (IDM Antivirus Feature)
         if self.db.get_setting("antivirus_enabled", "1") == "1":
             def scan_worker():
                 try:

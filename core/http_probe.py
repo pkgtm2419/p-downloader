@@ -8,7 +8,7 @@ from typing import Optional, Dict
 import requests
 
 from .download_models import DownloadRequest, HttpProbeResult, ProbeError
-from .categories import sanitize_filename
+from .categories import sanitize_filename, is_generic_route_name
 
 MAX_REDIRECTS = 10
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -46,8 +46,15 @@ def extract_filename_from_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     path = parsed.path
     base = os.path.basename(urllib.parse.unquote(path))
-    if base and base != "/" and base != ".":
+    if base and base != "/" and base != "." and not is_generic_route_name(base):
         return sanitize_filename(base)
+    # Check if query parameter has filename
+    qs = urllib.parse.parse_qs(parsed.query)
+    for q_key in ("filename", "file", "title", "name"):
+        if q_key in qs and qs[q_key][0]:
+            cand = qs[q_key][0]
+            if not is_generic_route_name(cand):
+                return sanitize_filename(cand)
     return "download"
 
 def probe_http(request: DownloadRequest, timeout_s: float = 8.0) -> HttpProbeResult:
@@ -81,10 +88,10 @@ def probe_http(request: DownloadRequest, timeout_s: float = 8.0) -> HttpProbeRes
 
     try:
         resp = session.get(request.url, headers=req_headers, stream=True, timeout=timeout_s, allow_redirects=True)
-    except requests.exceptions.TooManyRedirects:
-        raise ProbeError("REDIRECT_LOOP", "Too many redirects encountered while probing URL")
     except requests.exceptions.Timeout:
         raise ProbeError("TIMEOUT", f"Connection timed out after {timeout_s}s")
+    except requests.exceptions.TooManyRedirects:
+        raise ProbeError("REDIRECT_LOOP", "Too many redirects encountered while probing URL")
     except requests.exceptions.RequestException as e:
         raise ProbeError("NETWORK_ERROR", str(e))
 
@@ -106,7 +113,7 @@ def probe_http(request: DownloadRequest, timeout_s: float = 8.0) -> HttpProbeRes
     # Resolve filename
     extracted_filename = parse_content_disposition(content_disp)
     if not extracted_filename:
-        if request.filename:
+        if request.filename and not is_generic_route_name(request.filename):
             extracted_filename = sanitize_filename(request.filename)
         else:
             extracted_filename = extract_filename_from_url(final_url)
@@ -141,7 +148,10 @@ def probe_http(request: DownloadRequest, timeout_s: float = 8.0) -> HttpProbeRes
             if start == 0 and end == 0:
                 supports_ranges = True
                 if total != "*":
-                    total_bytes = int(total)
+                    try:
+                        total_bytes = int(total)
+                    except ValueError:
+                        pass
         else:
             # Server sent 206 but with non-compliant Content-Range
             supports_ranges = False

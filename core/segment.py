@@ -58,14 +58,22 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
     try:
         from core.youtube_downloader import is_youtube_url, probe_youtube
         if is_youtube_url(url):
-            yt_info = probe_youtube(url)
+            yt_info = probe_youtube(url, timeout_sec=min(timeout, 8))
             return {
                 "url": url,
                 "final_url": url,
                 "filename": yt_info.get("filename", "YouTube_Video.mp4"),
                 "total_bytes": yt_info.get("total_bytes", 0),
                 "supports_range": True,
-                "is_youtube": True
+                "is_youtube": True,
+                "is_playlist": yt_info.get("is_playlist", False),
+                "playlist_title": yt_info.get("title", ""),
+                "entries": yt_info.get("entries", []),
+                "count": yt_info.get("count", 0),
+                "thumbnail": yt_info.get("thumbnail", ""),
+                "duration": yt_info.get("duration", 0),
+                "formats": yt_info.get("formats", []),
+                "selectable_formats": yt_info.get("selectable_formats", [])
             }
     except Exception:
         pass
@@ -192,10 +200,13 @@ class DownloadTask:
                 pass
 
         # Probe fresh URL
-        info = probe_url(self.url)
-        self.is_unknown_length = info.get("is_unknown_length", False)
-        self.total_bytes = None if self.is_unknown_length else info.get("total_bytes", 0)
-        self.supports_range = info.get("supports_range", False)
+        try:
+            info = probe_url(self.url)
+            self.is_unknown_length = info.get("is_unknown_length", False)
+            self.total_bytes = None if self.is_unknown_length else info.get("total_bytes", 0)
+            self.supports_range = info.get("supports_range", False)
+        except Exception:
+            info = {"total_bytes": self.total_bytes or 0, "supports_range": False}
 
         save_dir = os.path.dirname(self.save_path)
         if save_dir:

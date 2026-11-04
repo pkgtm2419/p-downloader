@@ -14,6 +14,7 @@ from PyQt6.QtGui import QIcon, QFont
 from core.engine import DownloadEngine
 from core.segment import validate_refresh_url
 from .styles import format_bytes
+from .icons import get_icon, COLOR_SLATE, COLOR_WHITE, COLOR_PRIMARY
 
 class URLValidatorThread(QThread):
     finished_validation = pyqtSignal(bool, str, dict)
@@ -145,13 +146,15 @@ class RefreshDownloadDialog(QDialog):
 
         url_input_layout.addWidget(self.url_edit)
 
-        btn_paste = QPushButton("📋 Paste", self)
-        btn_paste.setObjectName("btnSecondary")
+        btn_paste = QPushButton("Paste", self)
+        btn_paste.setObjectName("secondaryBtn")
+        btn_paste.setIcon(get_icon("copy", COLOR_SLATE, 16))
         btn_paste.clicked.connect(self._paste_clipboard)
         url_input_layout.addWidget(btn_paste)
 
-        btn_open_browser = QPushButton("🌐 Open Source Page", self)
-        btn_open_browser.setObjectName("btnSecondary")
+        btn_open_browser = QPushButton("Open Source Page", self)
+        btn_open_browser.setObjectName("secondaryBtn")
+        btn_open_browser.setIcon(get_icon("globe", COLOR_SLATE, 16))
         btn_open_browser.setToolTip("Opens the original link/domain in your default web browser to obtain a new URL")
         btn_open_browser.clicked.connect(self._open_in_browser)
         url_input_layout.addWidget(btn_open_browser)
@@ -161,7 +164,7 @@ class RefreshDownloadDialog(QDialog):
         # Checkbox & Status
         self.chk_auto_resume = QCheckBox("Resume download automatically after validation")
         self.chk_auto_resume.setChecked(True)
-        self.chk_auto_resume.setStyleSheet("color: #cbd5e1;")
+        self.chk_auto_resume.setStyleSheet("color: #64748B;")
         layout.addWidget(self.chk_auto_resume)
 
         self.status_lbl = QLabel("")
@@ -174,11 +177,12 @@ class RefreshDownloadDialog(QDialog):
         btn_layout.addStretch()
 
         self.btn_cancel = QPushButton("Cancel", self)
-        self.btn_cancel.setObjectName("btnSecondary")
+        self.btn_cancel.setObjectName("secondaryBtn")
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
-        self.btn_apply = QPushButton("🔄 Refresh & Resume", self)
+        self.btn_apply = QPushButton("Refresh & Resume", self)
+        self.btn_apply.setIcon(get_icon("rotate-cw", COLOR_WHITE, 16))
         self.btn_apply.clicked.connect(self._validate_and_apply)
         btn_layout.addWidget(self.btn_apply)
 
@@ -204,8 +208,8 @@ class RefreshDownloadDialog(QDialog):
             return
 
         self.btn_apply.setEnabled(False)
-        self.status_lbl.setStyleSheet("color: #38bdf8;")
-        self.status_lbl.setText("⏳ Verifying new download URL and server byte-range support...")
+        self.status_lbl.setStyleSheet("color: #2563EB;")
+        self.status_lbl.setText("Verifying new download URL and server byte-range support...")
 
         self.validation_thread = URLValidatorThread(new_url, self.total_bytes)
         self.validation_thread.finished_validation.connect(self._on_validation_result)
@@ -216,12 +220,12 @@ class RefreshDownloadDialog(QDialog):
         new_url = self.url_edit.text().strip()
 
         if not valid:
-            self.status_lbl.setStyleSheet("color: #f87171;")
-            self.status_lbl.setText(f"❌ {message}")
+            self.status_lbl.setStyleSheet("color: #DC2626;")
+            self.status_lbl.setText(f"Verification failed: {message}")
             return
 
-        self.status_lbl.setStyleSheet("color: #10b981;")
-        self.status_lbl.setText("✅ Verified! Updating download address and resuming...")
+        self.status_lbl.setStyleSheet("color: #16A34A;")
+        self.status_lbl.setText("Verified! Updating download address and resuming...")
 
         auto_resume = self.chk_auto_resume.isChecked()
         self.engine.refresh_download(self.task_id, new_url, resume_now=auto_resume)
