@@ -101,9 +101,14 @@ def bump_all_files(old_ver: str, new_ver: str):
         f'#define MyAppVersion "{new_ver}"'
     )
 
-    # 4. browser_extension/manifest.json
+    # 4. browser_extension/manifest.json & manifest.firefox.json
     update_file(
         ROOT / "browser_extension" / "manifest.json",
+        r'"version":\s*["\'][^"\']+["\']',
+        f'"version": "{new_ver}"'
+    )
+    update_file(
+        ROOT / "browser_extension" / "manifest.firefox.json",
         r'"version":\s*["\'][^"\']+["\']',
         f'"version": "{new_ver}"'
     )

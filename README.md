@@ -31,6 +31,14 @@
 
 **P-Downloader** is a modern, open-source desktop download manager and acceleration engine. Designed as a clean alternative to legacy utilities like Internet Download Manager (IDM), P-Downloader maximizes bandwidth utilization through dynamic chunking, multi-adapter network bonding, resume resilience, streaming HLS parsing, FFmpeg remuxing, video stream sniffing, and browser interception across Windows, Linux, and macOS.
 
+<div align="center">
+  <br />
+  <img src="resources/screenshot_main.png" alt="P-Downloader Main Dashboard UI" width="920" style="max-width: 100%; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18);" />
+  <br />
+  <em>P-Downloader v1.1.0 — IDM-Grade Dashboard with Multi-Segment Progress, Transfer Rates, and Collapsible Sidebar</em>
+  <br />
+</div>
+
 ---
 
 ## ✨ Features
@@ -167,13 +175,13 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 ### 1. Windows Installation
 
 #### Option A: Windows Setup Installer (Recommended)
-1. Download **`P-Downloader-Setup-v1.0.6.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-Setup-v1.1.0.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to seamlessly upgrade (preserving your history and settings) or perform a clean reinstall.
 3. The installer automatically registers native messaging host integration for Chrome, Edge, Brave, Chromium, and Firefox.
 4. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
 #### Option B: Portable Mode
-1. Download **`P-Downloader-v1.0.6-Portable.exe`** or extract **`P-Downloader-v1.0.6-Windows-x64-Portable.zip`**.
+1. Download **`P-Downloader-v1.1.0-Portable.exe`** or extract **`P-Downloader-v1.1.0-Windows-x64-Portable.zip`**.
 2. Double-click `P-Downloader.exe` to run immediately without installation.
 
 #### Option C: Run from Source
@@ -199,10 +207,10 @@ python main.py
 ### 2. Linux Installation (Ubuntu, Debian, Fedora, Arch)
 
 #### Option A: Standalone Binary Package
-1. Download **`P-Downloader-v1.0.6-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+1. Download **`P-Downloader-v1.1.0-Linux-x64.tar.gz`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
 2. Extract the archive:
    ```bash
-   tar -xvf P-Downloader-v1.0.6-Linux-x64.tar.gz
+   tar -xvf P-Downloader-v1.1.0-Linux-x64.tar.gz
    cd P-Downloader
    ./P-Downloader
    ```
@@ -269,6 +277,86 @@ python main.py
 
 ---
 
+
+---
+
+### 4. Docker & Headless Server (Linux / NAS / Unraid / Synology)
+
+Run P-Downloader in background daemon mode on any home server, VPS, or NAS without X11/Qt display dependencies:
+
+#### Option A: Docker Container
+```bash
+# Pull and run container
+docker run -d \
+  --name pdownloader \
+  --restart unless-stopped \
+  -p 8088:8088 \
+  -v ~/Downloads:/downloads \
+  -v ~/.pdownloader:/root/.pdownloader \
+  -e PDOWNLOADER_TOKEN="your-secure-token" \
+  pkgtm2419/p-downloader:latest
+```
+
+#### Option B: Docker Compose
+```yaml
+version: '3.8'
+services:
+  pdownloader:
+    image: pkgtm2419/p-downloader:latest
+    container_name: pdownloader
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    volumes:
+      - ~/Downloads:/downloads
+      - ~/.pdownloader:/root/.pdownloader
+    environment:
+      - PDOWNLOADER_PORT=8088
+      - PDOWNLOADER_TOKEN=your-secret-api-token
+```
+
+#### Option C: Systemd Service (Headless Linux Daemon)
+Create `/etc/systemd/system/pdownloader.service`:
+```ini
+[Unit]
+Description=P-Downloader Headless Server
+After=network.target
+
+[Service]
+Type=simple
+User=pdownloader
+WorkingDirectory=/opt/p-downloader
+ExecStart=/opt/p-downloader/.venv/bin/python main_headless.py --web-port 8088
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now pdownloader
+```
+
+---
+
+### 5. MCP Server for AI Assistants (Claude, Gemini, Antigravity)
+
+Connect P-Downloader to your AI coding agents and assistants via the Model Context Protocol:
+
+Add to your `claude_desktop_config.json` or `antigravity.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "pdownloader": {
+      "command": "python",
+      "args": ["/path/to/p-downloader/scripts/pdownloader_mcp.py"]
+    }
+  }
+}
+```
+Available AI tools: `pdownloader_add_download`, `pdownloader_list_downloads`, `pdownloader_pause`, `pdownloader_resume`, `pdownloader_status`.
+
 ## 🌐 Browser Extension Integration (Chrome, Edge, Brave, Firefox)
 
 P-Downloader includes an official Manifest V3 browser extension and a native messaging host bridge for instant browser interception and in-page video sniffing.
@@ -291,7 +379,7 @@ Run the automated registrar script:
    - **Microsoft Edge**: `edge://extensions`
    - **Firefox**: `about:debugging#/runtime/this-firefox`
 2. Turn ON **Developer mode** (top-right toggle).
-3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.0.6.zip`).
+3. Click **Load unpacked** (or extract `pdownloader-browser-extension-v1.1.0.zip`).
 4. Select the `browser_extension` folder.
 5. You're ready! Right-click any downloadable link or click the floating video download pill on media pages.
 
@@ -347,7 +435,7 @@ build_installer.bat 1.0.1
 ```bash
 pip install -r requirements-dev.txt
 python3 -m PyInstaller --clean -y pdownloader.spec
-tar -czvf P-Downloader-v1.0.6-Linux-x64.tar.gz -C dist P-Downloader
+tar -czvf P-Downloader-v1.1.0-Linux-x64.tar.gz -C dist P-Downloader
 ```
 
 ---

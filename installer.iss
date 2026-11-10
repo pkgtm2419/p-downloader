@@ -1,7 +1,7 @@
 ; Inno Setup Script for P-Downloader
 #define MyAppName "P-Downloader"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.1.0"
 #endif
 #define MyAppPublisher "P-Downloader Project"
 #define MyAppURL "https://github.com/pkgtm2419/p-downloader"
