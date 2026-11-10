@@ -85,6 +85,13 @@ def probe_http(request: DownloadRequest, timeout_s: float = 8.0) -> HttpProbeRes
 
     session = requests.Session()
     session.max_redirects = MAX_REDIRECTS
+    try:
+        from core.db import DownloadDB
+        proxy_dict = DownloadDB().get_proxy_config()
+        if proxy_dict:
+            session.proxies.update(proxy_dict)
+    except Exception:
+        pass
 
     try:
         resp = session.get(request.url, headers=req_headers, stream=True, timeout=timeout_s, allow_redirects=True)

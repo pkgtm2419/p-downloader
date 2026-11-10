@@ -207,6 +207,14 @@ def probe_youtube(url: str, timeout_sec: int = 8) -> Dict[str, Any]:
         ydl_opts["ffmpeg_location"] = ffmpeg_bin
 
     try:
+        from core.db import DownloadDB
+        proxy_url = DownloadDB().get_proxy_url()
+        if proxy_url:
+            ydl_opts["proxy"] = proxy_url
+    except Exception:
+        pass
+
+    try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(target, download=False)
             if not info:
@@ -298,6 +306,7 @@ class YouTubeDownloadTask:
         quality: Optional[str] = None,
         connections: int = 8,
         speed_limit: int = 0,
+        headers: Optional[Dict[str, str]] = None,
         on_progress: Optional[Callable[['YouTubeDownloadTask'], None]] = None,
         on_complete: Optional[Callable[['YouTubeDownloadTask'], None]] = None,
         on_error: Optional[Callable[['YouTubeDownloadTask', str], None]] = None
@@ -308,6 +317,7 @@ class YouTubeDownloadTask:
         self.page_url = page_url
         self.quality = quality
         self.connections = connections
+        self.headers = headers or {}
         self.speed_limiter = SpeedLimiter(speed_limit)
         self.on_progress = on_progress
         self.on_complete = on_complete
@@ -422,6 +432,17 @@ class YouTubeDownloadTask:
             "noplaylist": True,  # Individual tasks download one video at a time
             "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
         }
+
+        if self.headers:
+            ydl_opts["http_headers"] = self.headers
+
+        try:
+            from core.db import DownloadDB
+            proxy_url = DownloadDB().get_proxy_url()
+            if proxy_url:
+                ydl_opts["proxy"] = proxy_url
+        except Exception:
+            pass
 
         ffmpeg_bin = FFmpegMuxer.get_ffmpeg_path()
         if ffmpeg_bin:

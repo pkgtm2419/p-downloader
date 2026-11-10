@@ -459,5 +459,6 @@ class AddDownloadDialog(QDialog):
             "auto_start": (self.action == "now"),
             "quality": self.selected_quality,
             "format_spec": self.selected_format_spec,
-            "page_url": self.page_url or self.txt_url.text().strip()
+            "page_url": self.page_url or self.txt_url.text().strip(),
+            "headers": self.headers
         }

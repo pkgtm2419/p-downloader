@@ -127,13 +127,30 @@ class HandoffStore:
 
             if engine:
                 req_dict = json.loads(req_json)
+                ctx_data = req_dict.get("context")
+                hdrs = None
+                if ctx_data and isinstance(ctx_data, dict):
+                    try:
+                        from core.download_models import BrowserRequestContext
+                        from core.browser_context import headers_for_target
+                        ctx = BrowserRequestContext(
+                            source_browser=ctx_data.get("source_browser"),
+                            page_url=ctx_data.get("page_url"),
+                            referrer=ctx_data.get("referrer"),
+                            user_agent=ctx_data.get("user_agent"),
+                            per_origin_headers=ctx_data.get("per_origin_headers") or {}
+                        )
+                        hdrs = headers_for_target(ctx, url)
+                    except Exception:
+                        pass
                 try:
                     engine.create_download(
                         url=url,
                         filename=filename,
                         save_path=destination,
                         connections=req_dict.get("connections") or 8,
-                        auto_start=True
+                        auto_start=True,
+                        headers=hdrs
                     )
                 except Exception:
                     pass

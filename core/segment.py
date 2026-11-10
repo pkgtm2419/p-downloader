@@ -140,6 +140,8 @@ class DownloadTask:
         save_path: str,
         connections: int = 8,
         speed_limit: int = 0,
+        headers: Optional[Dict[str, str]] = None,
+        proxies: Optional[Dict[str, str]] = None,
         on_progress: Optional[Callable[['DownloadTask'], None]] = None,
         on_complete: Optional[Callable[['DownloadTask'], None]] = None,
         on_error: Optional[Callable[['DownloadTask', str], None]] = None
@@ -148,6 +150,8 @@ class DownloadTask:
         self.url = url
         self.save_path = save_path
         self.connections = connections
+        self.headers = headers or {}
+        self.proxies = proxies
         self.speed_limiter = SpeedLimiter(speed_limit)
         self.on_progress = on_progress
         self.on_complete = on_complete
@@ -201,7 +205,7 @@ class DownloadTask:
 
         # Probe fresh URL
         try:
-            info = probe_url(self.url)
+            info = probe_url(self.url, headers=self.headers)
             self.is_unknown_length = info.get("is_unknown_length", False)
             self.total_bytes = None if self.is_unknown_length else info.get("total_bytes", 0)
             self.supports_range = info.get("supports_range", False)
@@ -348,11 +352,13 @@ class DownloadTask:
         if assigned_if:
             seg.assigned_adapter = assigned_if.alias
 
-        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None)
+        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None, proxies=self.proxies)
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        if self.headers:
+            headers.update(self.headers)
         auth_headers = CredentialsManager().get_auth_headers_for_url(self.url)
         if auth_headers:
             headers.update(auth_headers)
@@ -423,11 +429,13 @@ class DownloadTask:
         net_mgr = NetworkManager()
         is_local = "127.0.0.1" in self.url or "localhost" in self.url
         assigned_if = None if is_local else net_mgr.get_interface_for_segment(0)
-        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None)
+        session = net_mgr.get_session_for_interface(assigned_if.ip if assigned_if else None, proxies=self.proxies)
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        if self.headers:
+            headers.update(self.headers)
         auth_headers = CredentialsManager().get_auth_headers_for_url(self.url)
         if auth_headers:
             headers.update(auth_headers)

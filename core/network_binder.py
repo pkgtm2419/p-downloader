@@ -28,6 +28,10 @@ class SourceAddressAdapter(HTTPAdapter):
         kwargs['source_address'] = self.source_address
         return super().init_poolmanager(*args, **kwargs)
 
+    def proxy_manager_for(self, *args, **kwargs):
+        kwargs['source_address'] = self.source_address
+        return super().proxy_manager_for(*args, **kwargs)
+
 class NetworkInterface:
     def __init__(
         self,
@@ -133,12 +137,20 @@ class NetworkManager:
         active = [ni for ni in self.interfaces.values() if ni.enabled]
         return active if active else list(self.interfaces.values())
 
-    def get_session_for_interface(self, ip: Optional[str] = None) -> requests.Session:
+    def get_session_for_interface(self, ip: Optional[str] = None, proxies: Optional[Dict[str, str]] = None) -> requests.Session:
         """
-        Creates a requests.Session bound to a specific network interface's IP.
+        Creates a requests.Session bound to a specific network interface's IP and proxy.
         If IP is None or not available, returns a standard unbound Session.
         """
         session = requests.Session()
+        if proxies is None:
+            try:
+                from core.db import DownloadDB
+                proxies = DownloadDB().get_proxy_config()
+            except Exception:
+                pass
+        if proxies:
+            session.proxies.update(proxies)
         if self.bonding_enabled and ip and ip in self.interfaces:
             try:
                 adapter = SourceAddressAdapter(ip)

@@ -3,7 +3,7 @@ Real OS network adapter discovery, routing information, and route-bound HTTP ses
 """
 import socket
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.connection import create_connection
@@ -122,9 +122,17 @@ def verify_route(route: NetworkRoute, target_host: str = "127.0.0.1", port: int 
         return RouteHealth(route_id=route.id, reachable=False, latency_ms=elapsed, status=str(e))
 
 
-def get_session_for_route(route: Optional[NetworkRoute]) -> requests.Session:
-    """Return requests.Session bound to the specific network route."""
+def get_session_for_route(route: Optional[NetworkRoute], proxies: Optional[Dict[str, str]] = None) -> requests.Session:
+    """Return requests.Session bound to the specific network route and proxy."""
     session = requests.Session()
+    if proxies is None:
+        try:
+            from core.db import DownloadDB
+            proxies = DownloadDB().get_proxy_config()
+        except Exception:
+            pass
+    if proxies:
+        session.proxies.update(proxies)
     if route and route.source_ip and route.source_ip not in ("0.0.0.0", "::"):
         adapter = SourceAddressAdapter(route.source_ip)
         session.mount("http://", adapter)

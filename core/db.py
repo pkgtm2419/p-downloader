@@ -72,6 +72,8 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         cols = [r[1] for r in cursor.fetchall()]
         if "kind" not in cols:
             conn.execute("ALTER TABLE downloads ADD COLUMN kind TEXT DEFAULT 'http'")
+        if "headers_json" not in cols:
+            conn.execute("ALTER TABLE downloads ADD COLUMN headers_json TEXT")
     return conn
 
 class DownloadDB:
@@ -80,6 +82,27 @@ class DownloadDB:
         self.db_path = db_path or get_default_db_path()
         self.conn = init_db(self.db_path)
 
+    def get_proxy_url(self) -> Optional[str]:
+        """Returns the configured proxy URL (e.g. http://127.0.0.1:8080 or socks5://...) or None."""
+        if self.get_setting("use_proxy", "0") != "1":
+            return None
+        proto = self.get_setting("proxy_proto", "HTTP").lower()
+        host = self.get_setting("proxy_host", "").strip()
+        port = self.get_setting("proxy_port", "8080").strip()
+        if not host:
+            return None
+        return f"{proto}://{host}:{port}"
+
+    def get_proxy_config(self) -> Optional[Dict[str, str]]:
+        """Returns requests-compatible proxies dict or None if proxy is disabled."""
+        url = self.get_proxy_url()
+        if not url:
+            return None
+        return {
+            "http": url,
+            "https": url
+        }
+
     def add_download(self, item: Dict[str, Any]):
         with self._lock:
             try:
@@ -87,14 +110,17 @@ class DownloadDB:
                     self.conn.execute("""
                         INSERT OR REPLACE INTO downloads (
                             id, url, filename, save_path, total_bytes, downloaded_bytes,
-                            status, category, connections, supports_range, created_at, error_message
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                            status, category, connections, supports_range, created_at, error_message,
+                            kind, headers_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
                     """, (
                         item["id"], item["url"], item["filename"], item["save_path"],
                         item.get("total_bytes", 0), item.get("downloaded_bytes", 0),
                         item.get("status", "queued"), item.get("category", "General"),
                         item.get("connections", 8), 1 if item.get("supports_range", True) else 0,
-                        item.get("error_message", None)
+                        item.get("error_message", None),
+                        item.get("kind", "http"),
+                        item.get("headers_json", None)
                     ))
             except Exception:
                 pass

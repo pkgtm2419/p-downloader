@@ -4,7 +4,7 @@ Central Download Engine controlling queues, persistence, and task lifecycles.
 import os
 import uuid
 import threading
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Any
 from .db import DownloadDB
 from .segment import DownloadTask, probe_url
 from .categories import (
@@ -44,12 +44,21 @@ class DownloadEngine:
         request,
         auto_start: bool = True
     ) -> DownloadTask:
+        from core.browser_context import headers_for_target
+        hdrs = None
+        if getattr(request, "context", None):
+            try:
+                hdrs = headers_for_target(request.context, request.url)
+            except Exception:
+                pass
         return self.create_download(
             url=request.url,
             filename=request.filename,
             save_path=request.destination,
             connections=request.connections or 8,
-            auto_start=auto_start
+            auto_start=auto_start,
+            headers=hdrs,
+            context=getattr(request, "context", None)
         )
 
     def create_download(
@@ -61,8 +70,17 @@ class DownloadEngine:
         connections: int = 8,
         auto_start: bool = True,
         page_url: Optional[str] = None,
-        quality: Optional[str] = None
+        quality: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        context: Optional[Any] = None
     ) -> DownloadTask:
+        if context and not headers:
+            try:
+                from core.browser_context import headers_for_target
+                headers = headers_for_target(context, url)
+            except Exception:
+                pass
+
         from core.youtube_downloader import is_youtube_url
         is_yt = is_youtube_url(url) or (page_url and is_youtube_url(page_url))
 
@@ -128,6 +146,7 @@ class DownloadEngine:
                 page_url=page_url,
                 quality=quality,
                 connections=connections,
+                headers=headers,
                 on_progress=self._on_task_progress,
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
@@ -145,6 +164,7 @@ class DownloadEngine:
                 url=url,
                 save_path=save_path,
                 connections=connections,
+                headers=headers,
                 on_progress=self._on_task_progress,
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
@@ -155,12 +175,16 @@ class DownloadEngine:
                 url=url,
                 save_path=save_path,
                 connections=connections,
+                headers=headers,
                 on_progress=self._on_task_progress,
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
             )
 
         task.prepare()
+
+        import json
+        kind = "youtube" if is_yt else ("hls" if (".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8"))) else "http")
 
         # Save to database
         self.db.add_download({
@@ -173,7 +197,9 @@ class DownloadEngine:
             "status": "downloading" if auto_start else "queued",
             "category": category or get_category_for_filename(filename),
             "connections": connections,
-            "supports_range": task.supports_range
+            "supports_range": task.supports_range,
+            "kind": kind,
+            "headers_json": json.dumps(headers) if headers else None
         })
 
         self.tasks[task_id] = task
@@ -197,14 +223,36 @@ class DownloadEngine:
             row = self.db.get_download(task_id)
             if not row:
                 return
+            import json
+            hdrs = None
+            if row.get("headers_json"):
+                try:
+                    hdrs = json.loads(row["headers_json"])
+                except Exception:
+                    pass
+
             from core.youtube_downloader import is_youtube_url
-            if is_youtube_url(row["url"]):
+            kind = row.get("kind", "")
+            if kind == "youtube" or is_youtube_url(row["url"]):
                 from core.youtube_downloader import YouTubeDownloadTask
                 task = YouTubeDownloadTask(
                     task_id=task_id,
                     url=row["url"],
                     save_path=row["save_path"],
                     connections=row.get("connections", 8),
+                    headers=hdrs,
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
+            elif kind == "hls" or ".m3u8" in row["url"].lower():
+                from core.hls_downloader import HLSDownloadTask
+                task = HLSDownloadTask(
+                    task_id=task_id,
+                    url=row["url"],
+                    save_path=row["save_path"],
+                    connections=row.get("connections", 8),
+                    headers=hdrs,
                     on_progress=self._on_task_progress,
                     on_complete=self._on_task_complete,
                     on_error=self._on_task_error
@@ -215,6 +263,7 @@ class DownloadEngine:
                     url=row["url"],
                     save_path=row["save_path"],
                     connections=row.get("connections", 8),
+                    headers=hdrs,
                     on_progress=self._on_task_progress,
                     on_complete=self._on_task_complete,
                     on_error=self._on_task_error

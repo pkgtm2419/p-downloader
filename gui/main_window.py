@@ -648,7 +648,8 @@ class MainWindow(QMainWindow):
                 filename=initial_filename or None,
                 page_url=page_url or None,
                 quality=quality or None,
-                auto_start=True
+                auto_start=True,
+                headers=headers
             )
             self._load_table_data()
             return
@@ -672,7 +673,8 @@ class MainWindow(QMainWindow):
                 connections=res["connections"],
                 auto_start=res["auto_start"],
                 page_url=res.get("page_url"),
-                quality=res.get("quality")
+                quality=res.get("quality"),
+                headers=res.get("headers")
             )
             self._load_table_data()
 

@@ -95,6 +95,13 @@ class WebSpider:
         self._seen_urls: Set[str] = set()
 
         self.session = requests.Session()
+        try:
+            from core.db import DownloadDB
+            proxies = DownloadDB().get_proxy_config()
+            if proxies:
+                self.session.proxies.update(proxies)
+        except Exception:
+            pass
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 P-Downloader-Spider/1.0"
         })

@@ -62,6 +62,13 @@ def fetch_block(
 
     # Route binding if session provided
     session = requests.Session()
+    try:
+        from core.db import DownloadDB
+        proxy_dict = DownloadDB().get_proxy_config()
+        if proxy_dict:
+            session.proxies.update(proxy_dict)
+    except Exception:
+        pass
 
     try:
         resp = session.get(

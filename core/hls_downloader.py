@@ -192,6 +192,13 @@ class HLSDownloader:
 
             session = requests.Session()
             session.headers.update(self.headers)
+            try:
+                from core.db import DownloadDB
+                proxies = DownloadDB().get_proxy_config()
+                if proxies:
+                    session.proxies.update(proxies)
+            except Exception:
+                pass
 
             resp = session.get(self.m3u8_url, timeout=15)
             resp.raise_for_status()
@@ -348,6 +355,7 @@ class HLSDownloadTask:
         save_path: str,
         connections: int = 8,
         speed_limit: int = 0,
+        headers: Optional[Dict[str, str]] = None,
         on_progress: Optional[Callable[['HLSDownloadTask'], None]] = None,
         on_complete: Optional[Callable[['HLSDownloadTask'], None]] = None,
         on_error: Optional[Callable[['HLSDownloadTask', str], None]] = None
@@ -356,6 +364,7 @@ class HLSDownloadTask:
         self.url = url
         self.save_path = save_path
         self.connections = connections
+        self.headers = headers or {}
         self.on_progress = on_progress
         self.on_complete = on_complete
         self.on_error = on_error
@@ -369,7 +378,7 @@ class HLSDownloadTask:
         self.error_message = ""
         self.is_hls = True
 
-        self.downloader = HLSDownloader(url, save_path, max_workers=connections)
+        self.downloader = HLSDownloader(url, save_path, max_workers=connections, headers=self.headers)
         self.downloader.add_callback(self._on_hls_state)
 
     def prepare(self):
