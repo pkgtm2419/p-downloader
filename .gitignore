@@ -58,6 +58,7 @@ downloads.db
 .pdownloader/
 /pdownloader_host.bat
 /com.pdownloader.host.json
+browser_extension/com.pdownloader.host*.json
 !resources/com.pdownloader.host.json
 
 # Local downloads and temporary test artifacts

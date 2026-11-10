@@ -79,3 +79,11 @@ P-Downloader v1.1.0 is our biggest architectural update yet, transforming P-Down
 - **209 Python Tests Passing**: Comprehensive unit, regression, integration, and mock network tests.
 - **23 Node.js Browser Tests Passing**: Full suite of manifest, content script, and native messaging tests.
 - **Flake8 & Type Safety**: Zero syntax or undefined symbol errors across all packages.
+
+---
+
+## 🪟 Windows 11 Installation & Smart App Control Note
+
+If Windows 11 blocks `P-Downloader-Setup.exe` with *"An Application Control policy has blocked this file"* due to Windows 11 Smart App Control (SAC):
+1. **1-Click Native Installer**: Clone or download the repo and double-click `install_windows.bat`. It creates Desktop/Start Menu shortcuts, registers browser extensions, and registers in Windows Installed Apps without any SAC prompts.
+2. **Setup Exe Unblock**: Right-click `P-Downloader-Setup.exe` > Properties > Check "Unblock" > Apply. Alternatively, adjust Smart App Control settings in Windows Security.

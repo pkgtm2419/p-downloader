@@ -25,6 +25,7 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog commandline
 SetupIconFile=resources\logo.ico
 CloseApplications=yes
 RestartApplications=no
@@ -84,8 +85,16 @@ begin
   begin
     RegQueryStringValue(HKCU, AppKey, 'InstallLocation', PrevDir);
     RegQueryStringValue(HKCU, AppKey, 'UninstallString', PrevUninstall);
-    Result := True;
-    Exit;
+    if (PrevDir <> '') and DirExists(PrevDir) then
+    begin
+      Result := True;
+      Exit;
+    end
+    else
+    begin
+      // Stale / orphaned uninstaller entry from previously deleted directory
+      RegDeleteKeyIncludingSubkeys(HKCU, AppKey);
+    end;
   end;
 
   // Fallback to HKLM
@@ -93,8 +102,15 @@ begin
   begin
     RegQueryStringValue(HKLM, AppKey, 'InstallLocation', PrevDir);
     RegQueryStringValue(HKLM, AppKey, 'UninstallString', PrevUninstall);
-    Result := True;
-    Exit;
+    if (PrevDir <> '') and DirExists(PrevDir) then
+    begin
+      Result := True;
+      Exit;
+    end
+    else
+    begin
+      RegDeleteKeyIncludingSubkeys(HKLM, AppKey);
+    end;
   end;
 end;
 

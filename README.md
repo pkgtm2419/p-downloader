@@ -174,17 +174,37 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 
 ### 1. Windows Installation
 
-#### Option A: Windows Setup Installer (Recommended)
-1. Download **`P-Downloader-Setup-v1.1.0.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
-2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to seamlessly upgrade (preserving your history and settings) or perform a clean reinstall.
-3. The installer automatically registers native messaging host integration for Chrome, Edge, Brave, Chromium, and Firefox.
+#### Option A: 1-Click Native Windows Installer (Recommended for Windows 11 & 10)
+> [!TIP]
+> **Windows 11 Smart App Control (SAC) Compatible**: Windows 11 22H2+ includes Smart App Control, which may block newly compiled open-source standalone `.exe` files that have not yet accumulated cloud reputation with Microsoft Defender. The 1-Click Native Installer uses the official Microsoft-trusted Python runtime and is **100% immune to Smart App Control blocks**.
+
+1. Download or clone this repository:
+   ```cmd
+   git clone https://github.com/pkgtm2419/p-downloader.git
+   cd p-downloader
+   ```
+2. Double-click **`install_windows.bat`** (or in PowerShell run `.\install_windows.ps1`).
+3. The installer automatically:
+   - Validates / installs required dependencies (`requirements.txt`).
+   - Creates a **Desktop shortcut** (`P-Downloader.lnk`) with the official high-resolution icon.
+   - Creates a **Start Menu shortcut** in `Programs > P-Downloader`.
+   - Registers browser extension **Native Messaging Hosts** for Chrome, Edge, Brave, Chromium, and Firefox in `HKCU`.
+   - Registers P-Downloader in Windows **Settings > Apps > Installed Apps** with a full uninstaller (`uninstall_windows.bat`).
+4. Launch P-Downloader directly from your Desktop or Start Menu!
+
+#### Option B: Windows Setup Wizard Installer (`P-Downloader-Setup.exe`)
+1. Download **`P-Downloader-Setup.exe`** from [GitHub Releases](https://github.com/pkgtm2419/p-downloader/releases/latest).
+2. Run the installer wizard. If an existing version of P-Downloader is already present, the setup will automatically detect it and ask whether you want to upgrade (preserving history and settings) or perform a clean reinstall.
+3. **If Windows 11 Smart App Control blocks the file** (*"An Application Control policy has blocked this file"*):
+   - Right-click `P-Downloader-Setup.exe` > **Properties** > Check **Unblock** at the bottom > Click **Apply**.
+   - Alternatively, use **Option A (`install_windows.bat`)** above, or navigate to *Windows Security > App & browser control > Smart App Control settings* and set to *Evaluation* or *Off*.
 4. Launch P-Downloader from your Start Menu or Desktop shortcut.
 
-#### Option B: Portable Mode
-1. Download **`P-Downloader-v1.1.0-Portable.exe`** or extract **`P-Downloader-v1.1.0-Windows-x64-Portable.zip`**.
-2. Double-click `P-Downloader.exe` to run immediately without installation.
+#### Option C: Portable Mode
+1. Download **`P-Downloader-Portable.exe`** or extract **`P-Downloader-Windows-x64-Portable.zip`**.
+2. Double-click `P-Downloader-Portable.exe` to run immediately without installation.
 
-#### Option C: Run from Source
+#### Option D: Run from Source
 ```powershell
 # 1. Clone repository
 git clone https://github.com/pkgtm2419/p-downloader.git
