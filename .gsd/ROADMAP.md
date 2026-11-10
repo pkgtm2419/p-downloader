@@ -21,9 +21,9 @@ Based on `p-downloader-master-feature-and-optimization-plan.md`.
 - [x] Task 2.4: Automated RSS Torrent Watcher (REQ-TOR-04)
 - [x] Task 2.5: Checksum Verification Subsystem (REQ-TOR-05)
 
-## Phase 3: Debrid Cloud & Automatic Archive Extraction
-- [ ] Task 3.1: Multi-Provider Debrid API Clients (REQ-DEB-01)
-- [ ] Task 3.2: Multi-Volume Archive Extraction Pipeline (REQ-ARC-01)
+## Phase 3: Debrid Cloud & Automatic Archive Extraction (Completed)
+- [x] Task 3.1: Multi-Provider Debrid API Clients (REQ-DEB-01)
+- [x] Task 3.2: Multi-Volume Archive Extraction Pipeline (REQ-ARC-01)
 
 ## Phase 4: Remote Control, Headless Server & AI MCP Server
 - [ ] Task 4.1: Embedded HTTPS Web Remote with QR/PIN Pairing (REQ-REM-01)

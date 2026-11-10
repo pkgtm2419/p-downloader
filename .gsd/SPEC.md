@@ -35,8 +35,8 @@ All changes strictly preserve P-Downloader's unique architectural strengths:
 - [x] **REQ-TOR-05**: Checksum Integrity Verification — MD5, SHA-1, SHA-256 validation UI and automated post-download check.
 
 ### Phase 3: Debrid Cloud & Archive Extraction Pipeline
-- [ ] **REQ-DEB-01**: Multi-Provider Debrid Support — OAuth device-flow and API clients for Real-Debrid, AllDebrid, and Premiumize in `core/debrid/`.
-- [ ] **REQ-ARC-01**: Multi-Volume Archive Extraction — Auto-extract split `.part1.rar`, `.7z.001`, `.zip`, `.tar` via bundled `7za.exe` / native unpackers in `core/extractor_archive.py`.
+- [x] **REQ-DEB-01**: Multi-Provider Debrid Support — OAuth device-flow and API clients for Real-Debrid, AllDebrid, and Premiumize in `core/debrid/`.
+- [x] **REQ-ARC-01**: Multi-Volume Archive Extraction — Auto-extract split `.part1.rar`, `.7z.001`, `.zip`, `.tar` via bundled `7za.exe` / native unpackers in `core/extractor_archive.py`.
 
 ### Phase 4: Remote Control, Headless Server & AI MCP Server
 - [ ] **REQ-REM-01**: Embedded HTTPS Web Remote — TLS-encrypted local web interface with QR-code and 8-digit PIN pairing (`core/remote_server.py`).

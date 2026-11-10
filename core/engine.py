@@ -81,6 +81,19 @@ class DownloadEngine:
             except Exception:
                 pass
 
+        # Check Debrid unrestriction for file-hosters
+        try:
+            from core.debrid import DebridManager
+            dm = DebridManager(self.db)
+            if dm.is_debrid_host(url):
+                unrestricted, direct_url, meta = dm.unrestrict_link(url)
+                if unrestricted and direct_url:
+                    url = direct_url
+                    if not filename and meta.get("filename"):
+                        filename = meta["filename"]
+        except Exception:
+            pass
+
         from core.extractor import is_media_url
         is_yt = is_media_url(url) or (page_url and is_media_url(page_url))
 
@@ -407,6 +420,16 @@ class DownloadEngine:
                 except Exception:
                     pass
             threading.Thread(target=scan_worker, daemon=True).start()
+
+        if self.db.get_setting("auto_extract_archives", "0") == "1":
+            def extract_worker():
+                try:
+                    from core.extractor_archive import is_first_volume_or_single_archive, extract_archive
+                    if is_first_volume_or_single_archive(task.save_path):
+                        extract_archive(task.save_path)
+                except Exception:
+                    pass
+            threading.Thread(target=extract_worker, daemon=True).start()
 
     def _on_task_error(self, task: DownloadTask, error_msg: str):
         self.db.update_status(task.task_id, "error", task.downloaded_bytes, error_msg)
