@@ -25,19 +25,19 @@ Based on `p-downloader-master-feature-and-optimization-plan.md`.
 - [x] Task 3.1: Multi-Provider Debrid API Clients (REQ-DEB-01)
 - [x] Task 3.2: Multi-Volume Archive Extraction Pipeline (REQ-ARC-01)
 
-## Phase 4: Remote Control, Headless Server & AI MCP Server
-- [ ] Task 4.1: Embedded HTTPS Web Remote with QR/PIN Pairing (REQ-REM-01)
-- [ ] Task 4.2: Headless Daemon Mode for NAS & Docker (REQ-HDL-01)
-- [ ] Task 4.3: Model Context Protocol (MCP) Server for AI Assistants (REQ-MCP-01)
-- [ ] Task 4.4: IDM-Compatible CLI Switch Support (REQ-CLI-01)
+## Phase 4: Remote Control, Headless Server & AI MCP Server (Completed)
+- [x] Task 4.1: Embedded HTTPS Web Remote with QR/PIN Pairing (REQ-REM-01)
+- [x] Task 4.2: Headless Daemon Mode for NAS & Docker (REQ-HDL-01)
+- [x] Task 4.3: Model Context Protocol (MCP) Server for AI Assistants (REQ-MCP-01)
+- [x] Task 4.4: IDM-Compatible CLI Switch Support (REQ-CLI-01)
 
-## Phase 5: Privacy, VPN Fail-Closed & Geo-IP
-- [ ] Task 5.1: VPN Exclusive Mode Fail-Closed Kill-Switch (REQ-NET-01)
-- [ ] Task 5.2: DNS-over-HTTPS (DoH) Integration (REQ-NET-02)
-- [ ] Task 5.3: Offline Geo-IP Location & Latency Display (REQ-NET-03)
+## Phase 5: Privacy, VPN Fail-Closed & Geo-IP (Completed)
+- [x] Task 5.1: VPN Exclusive Mode Fail-Closed Kill-Switch (REQ-NET-01)
+- [x] Task 5.2: DNS-over-HTTPS (DoH) Integration (REQ-NET-02)
+- [x] Task 5.3: Offline Geo-IP Location & Latency Display (REQ-NET-03)
 
-## Phase 6: Modern UI/UX, Themes, Accessibility & Native AOT Compilation (<30MB RAM)
-- [ ] Task 6.1: Dynamic Multi-Theme Engine (REQ-UI-01)
-- [ ] Task 6.2: Accessibility & Screen Reader Compliance (REQ-UI-02)
-- [ ] Task 6.3: Multi-Language Internationalization (86 Languages + RTL) (REQ-UI-03)
-- [ ] Task 6.4: AOT Native C++ Compilation via Nuitka (<30 MB RAM) (REQ-OPT-01)
+## Phase 6: Modern UI/UX, Themes, Accessibility & Native AOT Compilation (<30MB RAM) (Completed)
+- [x] Task 6.1: Dynamic Multi-Theme Engine (9 themes) (REQ-UI-01)
+- [x] Task 6.2: Accessibility & Screen Reader Compliance (REQ-UI-02)
+- [x] Task 6.3: Multi-Language Internationalization & RTL Layouts (REQ-UI-03)
+- [x] Task 6.4: AOT Native Compilation via Nuitka (<30 MB RAM) (REQ-OPT-01)

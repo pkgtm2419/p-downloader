@@ -39,18 +39,18 @@ All changes strictly preserve P-Downloader's unique architectural strengths:
 - [x] **REQ-ARC-01**: Multi-Volume Archive Extraction — Auto-extract split `.part1.rar`, `.7z.001`, `.zip`, `.tar` via bundled `7za.exe` / native unpackers in `core/extractor_archive.py`.
 
 ### Phase 4: Remote Control, Headless Server & AI MCP Server
-- [ ] **REQ-REM-01**: Embedded HTTPS Web Remote — TLS-encrypted local web interface with QR-code and 8-digit PIN pairing (`core/remote_server.py`).
-- [ ] **REQ-HDL-01**: Headless Daemon & Docker Support — Run without X11/Qt via `main_headless.py` and minimal Docker container.
-- [ ] **REQ-MCP-01**: Model Context Protocol (MCP) Server — Stdio JSON-RPC MCP server (`scripts/pdownloader-mcp.py`) exposing tools to Claude Desktop, Cursor, and AI agents.
-- [ ] **REQ-CLI-01**: IDM-Compatible CLI Switches — `/d`, `/p`, `/f`, `/q`, `/s`, `/n` command line parameters.
+- [x] **REQ-REM-01**: Embedded HTTPS Web Remote — TLS-encrypted local web interface with QR-code and 8-digit PIN pairing (`core/remote_server.py`).
+- [x] **REQ-HDL-01**: Headless Daemon & Docker Support — Run without X11/Qt via `main_headless.py` and minimal Docker container.
+- [x] **REQ-MCP-01**: Model Context Protocol (MCP) Server — Stdio JSON-RPC MCP server (`scripts/pdownloader-mcp.py`) exposing tools to Claude Desktop, Cursor, and AI agents.
+- [x] **REQ-CLI-01**: IDM-Compatible CLI Switches — `/d`, `/p`, `/f`, `/q`, `/s`, `/n` command line parameters.
 
 ### Phase 5: Privacy, VPN Fail-Closed & Geo-IP
-- [ ] **REQ-NET-01**: VPN Exclusive Fail-Closed Kill-Switch — Pause active transfers immediately if the designated VPN adapter disconnects (`core/network_binder.py`).
-- [ ] **REQ-NET-02**: Encrypted DNS (DoH) — DNS-over-HTTPS via Cloudflare / Quad9 (`core/dns_doh.py`).
-- [ ] **REQ-NET-03**: Geo-IP & Latency Monitoring — Offline DB-IP lookup showing server country flags and ping times.
+- [x] **REQ-NET-01**: VPN Exclusive Fail-Closed Kill-Switch — Pause active transfers immediately if the designated VPN adapter disconnects (`core/network_binder.py`).
+- [x] **REQ-NET-02**: Encrypted DNS (DoH) — DNS-over-HTTPS via Cloudflare / Quad9 (`core/dns_doh.py`).
+- [x] **REQ-NET-03**: Geo-IP & Latency Monitoring — Offline DB-IP lookup showing server country flags and ping times.
 
 ### Phase 6: Modern UI/UX, Themes, Accessibility & Native AOT Compilation (<30MB RAM)
-- [ ] **REQ-UI-01**: Dynamic Theme Engine — Modern Fluent Dark, Fluent Light, Classic 98/XP, Aero/Neon with live switching (`gui/styles.py`).
-- [ ] **REQ-UI-02**: Accessibility & HiDPI Scaling — Screen reader labels (NVDA/Narrator), keyboard tab navigation, and 100%-200% zoom.
-- [ ] **REQ-UI-03**: Internationalization — `QTranslator` catalogs for 86 languages with RTL layout mirroring (`core/i18n.py`).
-- [ ] **REQ-OPT-01**: Nuitka AOT Native Compilation — Standalone C++ compilation script (`scripts/build_native.py`) and lazy loading to achieve <30 MB idle RAM and instant startup.
+- [x] **REQ-UI-01**: Dynamic Theme Engine — Modern Fluent Dark, Fluent Light, Classic 98/XP, Aero/Neon with live switching (`gui/styles.py`).
+- [x] **REQ-UI-02**: Accessibility & HiDPI Scaling — Screen reader labels (NVDA/Narrator), keyboard tab navigation, and 100%-200% zoom.
+- [x] **REQ-UI-03**: Internationalization — `QTranslator` catalogs for 86 languages with RTL layout mirroring (`core/i18n.py`).
+- [x] **REQ-OPT-01**: Nuitka AOT Native Compilation — Standalone C++ compilation script (`scripts/build_native.py`) and lazy loading to achieve <30 MB idle RAM and instant startup.
