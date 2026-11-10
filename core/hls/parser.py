@@ -125,6 +125,7 @@ class HLSParser:
         init_map_url = None
         init_map_byterange = None
         total_duration = 0.0
+        target_duration = 6.0
         media_sequence = 0
         is_live = True
 
@@ -133,7 +134,13 @@ class HLSParser:
         current_byterange = None
 
         for line in lines:
-            if line.startswith("#EXT-X-MEDIA-SEQUENCE:"):
+            if line.startswith("#EXT-X-TARGETDURATION:"):
+                try:
+                    target_duration = float(line.split(":")[1].strip())
+                except Exception:
+                    target_duration = 6.0
+
+            elif line.startswith("#EXT-X-MEDIA-SEQUENCE:"):
                 try:
                     media_sequence = int(line.split(":")[1].strip())
                 except Exception:
@@ -192,6 +199,7 @@ class HLSParser:
         return {
             "segments": segments,
             "total_duration": total_duration,
+            "target_duration": target_duration,
             "segment_count": len(segments),
             "media_sequence": media_sequence,
             "init_map_url": init_map_url,

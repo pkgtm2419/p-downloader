@@ -59,6 +59,10 @@ class HLSDownloadTask:
         self.status = "cancelled"
         self.downloader.cancel()
 
+    def stop_recording(self):
+        """Signals live recording to finish gracefully and preserve captured stream."""
+        self.downloader.stop_live()
+
     def set_speed_limit(self, limit: int):
         pass
 
@@ -76,7 +80,7 @@ class HLSDownloadTask:
             self.error_message = state.get("error_message", "HLS stream download failed")
             if self.on_error:
                 self.on_error(self, self.error_message)
-        elif st in ("downloading", "merging", "fetching"):
-            self.status = "downloading"
+        elif st in ("downloading", "merging", "fetching", "recording"):
+            self.status = "recording" if st == "recording" else "downloading"
             if self.on_progress:
                 self.on_progress(self)

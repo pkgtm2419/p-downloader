@@ -26,15 +26,17 @@ class HLSDownloader:
         save_path: str,
         max_workers: int = 8,
         headers: Optional[Dict[str, str]] = None,
-        chosen_variant_url: Optional[str] = None
+        chosen_variant_url: Optional[str] = None,
+        live_max_duration: Optional[float] = None
     ):
         self.m3u8_url = m3u8_url
         self.save_path = save_path
         self.max_workers = max_workers
         self.headers = headers or {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         self.chosen_variant_url = chosen_variant_url
+        self.live_max_duration = live_max_duration
 
-        self.status = "idle"  # idle, fetching, downloading, merging, completed, error, paused, cancelled
+        self.status = "idle"  # idle, fetching, downloading, recording, merging, completed, error, paused, cancelled
         self.error_message = ""
         self.total_segments = 0
         self.downloaded_segments = 0
@@ -44,8 +46,13 @@ class HLSDownloader:
 
         self.is_paused = False
         self.is_cancelled = False
+        self.is_live_stopped = False
         self._thread: Optional[threading.Thread] = None
         self._callbacks: List[Callable[[Dict[str, Any]], None]] = []
+
+    def stop_live(self):
+        """Signals live recording to finish gracefully and preserve captured stream."""
+        self.is_live_stopped = True
 
     def add_callback(self, cb: Callable[[Dict[str, Any]], None]):
         self._callbacks.append(cb)
@@ -150,6 +157,11 @@ class HLSDownloader:
             self._notify()
 
             key_mgr = HLSKeyManager(session)
+
+            # Check if playlist is a live event (no #EXT-X-ENDLIST)
+            if playlist.get("is_live", False):
+                self._run_live(session, target_m3u8, playlist, key_mgr)
+                return
 
             # 3. Download fMP4 initialization map if present (#EXT-X-MAP)
             init_map_path = None
@@ -288,3 +300,110 @@ class HLSDownloader:
             self._notify()
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def _run_live(self, session: requests.Session, target_m3u8: str, initial_playlist: Dict[str, Any], key_mgr: HLSKeyManager):
+        self.status = "recording"
+        self._notify()
+
+        out_dir = os.path.dirname(os.path.abspath(self.save_path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
+        target_duration = initial_playlist.get("target_duration", 6.0)
+        poll_interval = max(0.5, min(target_duration / 2.0, 4.0))
+
+        init_data = None
+        if initial_playlist.get("init_map_url"):
+            init_resp = session.get(initial_playlist["init_map_url"], timeout=15)
+            init_resp.raise_for_status()
+            init_data = init_resp.content
+
+        seen_sequences = set()
+        recorded_seconds = 0.0
+        bytes_since_last = 0
+        last_time = time.time()
+
+        with open(self.save_path, "wb") as out_f:
+            if init_data:
+                out_f.write(init_data)
+                self.downloaded_bytes += len(init_data)
+
+            current_playlist = initial_playlist
+            while not self.is_cancelled and not self.is_paused and not self.is_live_stopped:
+                new_segments = [s for s in current_playlist["segments"] if s["sequence_number"] not in seen_sequences]
+                new_segments.sort(key=lambda s: s["sequence_number"])
+
+                for seg_info in new_segments:
+                    if self.is_cancelled or self.is_paused or self.is_live_stopped:
+                        break
+                    seg_url = seg_info["url"]
+                    headers = dict(self.headers)
+                    if seg_info.get("byterange"):
+                        parts = seg_info["byterange"].split("@")
+                        length = int(parts[0])
+                        offset = int(parts[1]) if len(parts) > 1 else 0
+                        headers["Range"] = f"bytes={offset}-{offset + length - 1}"
+
+                    for attempt in range(3):
+                        try:
+                            r = session.get(seg_url, headers=headers, timeout=12)
+                            r.raise_for_status()
+                            data = r.content
+                            if seg_info.get("key_info") and seg_info["key_info"].get("method") != "NONE":
+                                data = key_mgr.decrypt_segment(data, seg_info["key_info"], seg_info["sequence_number"])
+
+                            out_f.write(data)
+                            out_f.flush()
+
+                            seg_len = len(data)
+                            self.downloaded_bytes += seg_len
+                            self.downloaded_segments += 1
+                            self.total_segments = self.downloaded_segments
+                            seen_sequences.add(seg_info["sequence_number"])
+                            recorded_seconds += seg_info.get("duration", 0.0)
+
+                            bytes_since_last += seg_len
+                            now = time.time()
+                            dt = now - last_time
+                            if dt >= 0.5:
+                                self.speed = bytes_since_last / dt
+                                bytes_since_last = 0
+                                last_time = now
+                                self._notify()
+                            break
+                        except Exception:
+                            if attempt == 2:
+                                pass
+                            time.sleep(0.2)
+
+                    if self.live_max_duration and recorded_seconds >= self.live_max_duration:
+                        self.is_live_stopped = True
+                        break
+
+                if not current_playlist.get("is_live"):
+                    # Live stream finished (EXT-X-ENDLIST arrived)
+                    break
+
+                sleep_steps = max(1, int(poll_interval / 0.2))
+                for _ in range(sleep_steps):
+                    if self.is_cancelled or self.is_paused or self.is_live_stopped:
+                        break
+                    time.sleep(0.2)
+
+                if self.is_cancelled or self.is_paused or self.is_live_stopped:
+                    break
+
+                try:
+                    resp = session.get(target_m3u8, timeout=15)
+                    resp.raise_for_status()
+                    current_playlist = HLSParser.parse_media_playlist(resp.text, target_m3u8)
+                except Exception:
+                    time.sleep(0.5)
+
+        if self.is_cancelled:
+            self.status = "cancelled"
+        elif self.is_paused:
+            self.status = "paused"
+        else:
+            self.status = "completed"
+        self._notify()
