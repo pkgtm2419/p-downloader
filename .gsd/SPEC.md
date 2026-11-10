@@ -16,10 +16,10 @@ All changes strictly preserve P-Downloader's unique architectural strengths:
 ## 2. Requirements & Must-Haves
 
 ### Phase 0: Critical Bug Fixes & Safety Net
-- [ ] **REQ-FIX-01**: Global Proxy & Context Propagation — Store and forward cookies, User-Agent, and Referer (`BrowserRequestContext`) to all download tasks (`engine.py`, `segment.py`, `add_dialog.py`). Route all HTTP range workers and `yt-dlp` through user-configured HTTP/SOCKS5 proxy (`core/network_binder.py`).
-- [ ] **REQ-FIX-02**: RFC 959 / 3659 Resilient FTP Client — Implement `FTPDownloadTask` with `SIZE` pre-flight probing and `REST` resume in `core/ftp_downloader.py`.
-- [ ] **REQ-FIX-03**: HLS AES-128 Cryptographic Correctness & Safe Pause — Compute IV as 16-byte big-endian `media_sequence + index` when IV is omitted. Apply PKCS#7 unpadding to decrypted segments. Return sentinel from paused workers to prevent unpack crashes (`core/hls_downloader.py`).
-- [ ] **REQ-FIX-04**: Firefox Extension Compatibility — Fix background scripts in `manifest.firefox.json` and remove top-level `importScripts` in `background.js` to restore Firefox compatibility.
+- [x] **REQ-FIX-01**: Global Proxy & Context Propagation — Store and forward cookies, User-Agent, and Referer (`BrowserRequestContext`) to all download tasks (`engine.py`, `segment.py`, `add_dialog.py`). Route all HTTP range workers and `yt-dlp` through user-configured HTTP/SOCKS5 proxy (`core/network_binder.py`).
+- [x] **REQ-FIX-02**: RFC 959 / 3659 Resilient FTP Client — Implement `FTPDownloadTask` with `SIZE` pre-flight probing and `REST` resume in `core/ftp_downloader.py`.
+- [x] **REQ-FIX-03**: HLS AES-128 Cryptographic Correctness & Safe Pause — Compute IV as 16-byte big-endian `media_sequence + index` when IV is omitted. Apply PKCS#7 unpadding to decrypted segments. Return sentinel from paused workers to prevent unpack crashes (`core/hls_downloader.py`).
+- [x] **REQ-FIX-04**: Firefox Extension Compatibility — Fix background scripts in `manifest.firefox.json` and remove top-level `importScripts` in `background.js` to restore Firefox compatibility.
 
 ### Phase 1: Universal Video Extractor & HLS/DASH Overhaul
 - [ ] **REQ-VID-01**: Unified Task Router — Implement `core/router.py` to route URLs by protocol, extension, and content-type without domain restrictions.
