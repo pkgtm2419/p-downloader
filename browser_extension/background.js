@@ -315,6 +315,15 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       const data = await sessionStore.get(CACHE_KEY);
       return {ok:true, items:(data[CACHE_KEY]?.[sender.tab.id] || []).filter(item => item.unsupported || item.format==='HLS' || item.format==='DASH' || item.format==='Web Video' || item.mediaKind==='blob' || /^(video|audio)\//i.test(item.mime) || /\.(m3u8|mpd|mp4|webm|mov|m4v|mp3|m4a|ogg|wav)(?:[?#]|$)/i.test(item.url))};
     }
+    if (message.action === 'pingDesktop') {
+      const start = Date.now();
+      try {
+        const res = await nativeSend({action: 'ping'});
+        return {ok: true, latency: Date.now() - start, data: res};
+      } catch (err) {
+        return {ok: false, error: err.message};
+      }
+    }
     throw new Error('Unsupported extension request.');
   };
   task().then(respond, error => respond({ok: false, error: error.message}));

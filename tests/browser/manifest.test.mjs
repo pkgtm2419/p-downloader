@@ -28,9 +28,13 @@ test('Firefox manifest contains all background scripts, content scripts, and val
   // Verify permissions
   assert.ok(manifest.permissions.includes('nativeMessaging'));
   assert.ok(manifest.permissions.includes('webRequest'));
+
+  // Verify options_ui
+  assert.ok(manifest.options_ui);
+  assert.equal(manifest.options_ui.page, 'options.html');
 });
 
-test('Chrome MV3 manifest contains service worker and content scripts', () => {
+test('Chrome MV3 manifest contains service worker, content scripts, and options_ui', () => {
   const crPath = path.resolve('browser_extension/manifest.json');
   const raw = fs.readFileSync(crPath, 'utf8');
   const manifest = JSON.parse(raw);
@@ -38,4 +42,6 @@ test('Chrome MV3 manifest contains service worker and content scripts', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
   assert.ok(Array.isArray(manifest.content_scripts));
+  assert.ok(manifest.options_ui);
+  assert.equal(manifest.options_ui.page, 'options.html');
 });
