@@ -57,7 +57,13 @@ def run_cli(args):
                 end="", flush=True
             )
 
-def run_gui(initial_url: str = "", start_tray: bool = False):
+def run_gui(
+    initial_url: str = "",
+    initial_filename: str = "",
+    initial_dir: str = "",
+    start_now: bool = False,
+    start_tray: bool = False
+):
     from PyQt6.QtWidgets import QApplication, QSystemTrayIcon
     from PyQt6.QtGui import QIcon, QFont
     from PyQt6.QtCore import QTimer
@@ -133,8 +139,8 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
             quality = msg.get("quality", "")
             ref = msg.get("referer", "")
             hdrs = msg.get("requestHeaders") or {}
-            start_now = msg.get("startNow", False)
-            QTimer.singleShot(0, lambda u=url, p=page_url, q=quality, f=fn, r=ref, h=hdrs, s=start_now: window.show_add_dialog(
+            start = msg.get("startNow", False) or msg.get("silent", False)
+            QTimer.singleShot(0, lambda u=url, p=page_url, q=quality, f=fn, r=ref, h=hdrs, s=start: window.show_add_dialog(
                 initial_url=u,
                 page_url=p,
                 quality=q,
@@ -144,6 +150,10 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
                 start_now=s
             ))
             return {"ok": True, "status": "queued"}
+
+        elif action == "start_queue":
+            QTimer.singleShot(0, lambda: engine.resume_all())
+            return {"ok": True, "status": "started"}
 
         elif action == "restore":
             QTimer.singleShot(0, lambda: (window.showNormal(), window.activateWindow(), window.raise_()))
@@ -171,11 +181,57 @@ def run_gui(initial_url: str = "", start_tray: bool = False):
         window.show()
 
     if initial_url:
-        window.show_add_dialog(initial_url=initial_url)
+        window.show_add_dialog(
+            initial_url=initial_url,
+            initial_filename=initial_filename,
+            start_now=start_now
+        )
 
     ret = app.exec()
     ipc_server.stop()
     sys.exit(ret)
+
+
+def normalize_idm_args(args_list: list) -> list:
+    """
+    Translates legacy IDM Windows-style CLI switches (/d, /p, /f, /q, /s, /n, /a, /h)
+    into standard P-Downloader flags.
+    """
+    normalized = []
+    i = 0
+    while i < len(args_list):
+        arg = args_list[i]
+        lower_arg = arg.lower()
+        if lower_arg in ("/d", "-d"):
+            normalized.append("--url")
+            if i + 1 < len(args_list):
+                i += 1
+                normalized.append(args_list[i])
+        elif lower_arg in ("/p", "-p"):
+            normalized.append("--output-dir")
+            if i + 1 < len(args_list):
+                i += 1
+                normalized.append(args_list[i])
+        elif lower_arg in ("/f", "-f"):
+            normalized.append("--filename")
+            if i + 1 < len(args_list):
+                i += 1
+                normalized.append(args_list[i])
+        elif lower_arg in ("/n", "-n"):
+            normalized.append("--silent")
+        elif lower_arg in ("/q", "-q"):
+            normalized.append("--quit-on-finish")
+        elif lower_arg in ("/s", "-s"):
+            normalized.append("--start-queue")
+        elif lower_arg in ("/a", "-a"):
+            normalized.append("--queue-only")
+        elif lower_arg == "/h":
+            normalized.append("--hangup")
+        else:
+            normalized.append(arg)
+        i += 1
+    return normalized
+
 
 def main():
     # Native messaging host mode (invoked by browser extension)
@@ -184,16 +240,42 @@ def main():
         host_main()
         return
 
+    raw_args = sys.argv[1:]
+    processed_args = normalize_idm_args(raw_args)
+
     parser = argparse.ArgumentParser(description="P-Downloader: High-speed multi-part download accelerator.")
     parser.add_argument("--version", "-v", action="version", version=f"P-Downloader {__version__}")
-    parser.add_argument("--url", type=str, help="Target URL to download")
+    parser.add_argument("--url", type=str, help="Target URL to download (or IDM /d)")
     parser.add_argument("--connections", type=int, default=8, help="Number of parallel connections (1-32)")
     parser.add_argument("--output", type=str, help="Target file save path")
+    parser.add_argument("--output-dir", type=str, help="Directory to save file (or IDM /p)")
+    parser.add_argument("--filename", type=str, help="Local file name (or IDM /f)")
+    parser.add_argument("--silent", action="store_true", help="Silent mode without add dialog (or IDM /n)")
+    parser.add_argument("--queue-only", action="store_true", help="Add to queue without starting immediately (or IDM /a)")
+    parser.add_argument("--start-queue", action="store_true", help="Start the download queue (or IDM /s)")
+    parser.add_argument("--quit-on-finish", action="store_true", help="Quit application after download finishes (or IDM /q)")
+    parser.add_argument("--hangup", action="store_true", help="Hang up / disconnect network after finish (or IDM /h)")
     parser.add_argument("--cli", action="store_true", help="Run in headless terminal/CLI mode")
     parser.add_argument("--tray", action="store_true", help="Start minimized in Windows system tray")
     parser.add_argument("--minimized", action="store_true", help="Start minimized in Windows system tray")
+    parser.add_argument("--headless", "--server", action="store_true", help="Run headless background daemon with web remote and local IPC")
+    parser.add_argument("--port", type=int, default=8463, help="Web remote server port for headless mode (default: 8463)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Web remote bind host for headless mode (default: 0.0.0.0)")
+    parser.add_argument("--tls", action="store_true", help="Enable HTTPS TLS for web remote")
 
-    args = parser.parse_args()
+    args = parser.parse_args(processed_args)
+
+    if args.headless:
+        from main_headless import main as headless_main
+        sys.argv = [sys.argv[0]]
+        if args.port:
+            sys.argv.extend(["--port", str(args.port)])
+        if args.host:
+            sys.argv.extend(["--host", str(args.host)])
+        if args.tls:
+            sys.argv.append("--tls")
+        headless_main()
+        return
 
     if args.cli and args.url:
         run_cli(args)
@@ -202,15 +284,35 @@ def main():
     # Check if instance is already running
     from core.ipc import send_to_running_instance
     if args.url:
-        if send_to_running_instance({"action": "download", "url": args.url}):
+        start_now = not args.queue_only
+        msg = {
+            "action": "download",
+            "url": args.url,
+            "filename": args.filename,
+            "destination": args.output_dir or args.output,
+            "startNow": start_now,
+            "silent": args.silent
+        }
+        if send_to_running_instance(msg):
             print("[IPC] Forwarded download to running P-Downloader instance.")
+            sys.exit(0)
+    elif args.start_queue:
+        if send_to_running_instance({"action": "start_queue"}):
+            print("[IPC] Forwarded start_queue to running P-Downloader instance.")
             sys.exit(0)
     elif not args.tray and not args.minimized:
         if send_to_running_instance({"action": "restore"}):
             print("[IPC] Restored running P-Downloader instance.")
             sys.exit(0)
 
-    run_gui(initial_url=args.url or "", start_tray=args.tray or args.minimized)
+    start_now = (not args.queue_only) and args.silent
+    run_gui(
+        initial_url=args.url or "",
+        initial_filename=args.filename or "",
+        initial_dir=args.output_dir or "",
+        start_now=start_now,
+        start_tray=args.tray or args.minimized
+    )
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  p-downloader:
+    build: .
+    container_name: p-downloader
+    restart: unless-stopped
+    ports:
+      - "8463:8463"
+      - "54321:54321"
+    volumes:
+      - ./downloads:/downloads
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1

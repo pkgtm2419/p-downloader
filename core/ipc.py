@@ -255,3 +255,67 @@ class IPCServer:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.0)
             self._thread = None
+
+
+class LocalIPCServer:
+    """
+    Headless/Local IPC controller allowing external processes and headless daemons
+    to create, pause, resume, and query downloads through DownloadEngine.
+    """
+    def __init__(self, engine, host: str = IPC_HOST, port: int = IPC_PORT):
+        self.engine = engine
+        self.host = host
+        self.port = port
+        self.server = IPCServer(self._handle_msg, host=host, port=port)
+
+    def _handle_msg(self, msg: Dict[str, Any]) -> Dict[str, Any]:
+        action = msg.get("action")
+        url = msg.get("url")
+
+        if action in ("download", "add_download") and url:
+            dest = msg.get("destination") or msg.get("output")
+            fn = msg.get("filename")
+            headers = msg.get("requestHeaders") or msg.get("headers")
+            start_now = msg.get("startNow", True)
+            try:
+                task = self.engine.create_download(
+                    url=url,
+                    save_path=dest,
+                    filename=fn,
+                    headers=headers,
+                    auto_start=start_now
+                )
+                return {"ok": True, "taskId": task.task_id, "status": task.status}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+
+        elif action == "pause":
+            task_id = msg.get("taskId")
+            if task_id and task_id in self.engine.tasks:
+                self.engine.tasks[task_id].pause()
+                return {"ok": True, "status": "paused"}
+            return {"ok": False, "error": "NOT_FOUND"}
+
+        elif action == "resume":
+            task_id = msg.get("taskId")
+            if task_id and task_id in self.engine.tasks:
+                self.engine.tasks[task_id].resume()
+                return {"ok": True, "status": "resumed"}
+            return {"ok": False, "error": "NOT_FOUND"}
+
+        elif action == "status":
+            task_id = msg.get("taskId")
+            if task_id and task_id in self.engine.tasks:
+                t = self.engine.tasks[task_id]
+                progress = (t.downloaded_bytes / t.total_bytes) if t.total_bytes > 0 else 0.0
+                return {"ok": True, "taskId": t.task_id, "status": t.status, "progress": progress}
+            return {"ok": False, "error": "NOT_FOUND"}
+
+        return {"ok": False, "error": f"Unknown action: {action}"}
+
+    def start(self, retries: int = 15, retry_delay: float = 0.1) -> bool:
+        return self.server.start(retries=retries, retry_delay=retry_delay)
+
+    def stop(self):
+        self.server.stop()
+
