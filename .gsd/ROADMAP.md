@@ -5,7 +5,7 @@ Based on `p-downloader-master-feature-and-optimization-plan.md`.
 ## Phase 0: Critical Bug Fixes & Safety Net (Current)
 - [x] Task 0.1: Context & Proxy Propagation Across All Network Layers (REQ-FIX-01)
 - [x] Task 0.2: Implement RFC 959 / 3659 Resilient FTP Client (REQ-FIX-02)
-- [ ] Task 0.3: Fix HLS AES-128 Sequence IV & PKCS#7 Unpadding & Pause Crash (REQ-FIX-03)
+- [x] Task 0.3: Fix HLS AES-128 Sequence IV & PKCS#7 Unpadding & Pause Crash (REQ-FIX-03)
 - [ ] Task 0.4: Fix Firefox Extension MV2 Compatibility & MV3 Fallback (REQ-FIX-04)
 
 ## Phase 1: Universal Video Extractor & HLS/DASH Overhaul

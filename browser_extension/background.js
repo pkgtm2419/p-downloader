@@ -1,6 +1,9 @@
 /* Downloads require extension UI messages; page player metadata is bounded and sanitized. */
-if(typeof importScripts==='function') importScripts('hls.js','youtube-media.js');
+if (typeof importScripts === 'function') {
+  try { importScripts('hls.js', 'youtube-media.js'); } catch (e) {}
+}
 const api = globalThis.browser || chrome;
+const actionApi = api.action || api.browserAction;
 const HOST = 'com.pdownloader.host';
 const CACHE_KEY = 'mediaByTab';
 let serial = Promise.resolve();
@@ -148,12 +151,16 @@ api.runtime.onInstalled.addListener(async () => {
 });
 api.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
-    if (info.menuItemId === 'awesome-page') { await api.tabs.sendMessage(tab.id, {action: 'collectLinks'}); await api.action.setBadgeText({tabId: tab.id, text: 'LINK'}); return; }
-    await enqueue({url: info.linkUrl || info.srcUrl, referer: tab?.url},tab?.id);
-    await api.action.setBadgeText({tabId: tab.id, text: 'OK'});
+    if (info.menuItemId === 'awesome-page') {
+      await api.tabs.sendMessage(tab.id, {action: 'collectLinks'});
+      if (actionApi?.setBadgeText) await actionApi.setBadgeText({tabId: tab.id, text: 'LINK'});
+      return;
+    }
+    await enqueue({url: info.linkUrl || info.srcUrl, referer: tab?.url}, tab?.id);
+    if (actionApi?.setBadgeText) await actionApi.setBadgeText({tabId: tab.id, text: 'OK'});
   } catch (e) {
     await api.storage.local.set({lastError: e.message});
-    if (tab?.id) await api.action.setBadgeText({tabId: tab.id, text: '!'});
+    if (tab?.id && actionApi?.setBadgeText) await actionApi.setBadgeText({tabId: tab.id, text: '!'});
   }
 });
 api.runtime.onMessage.addListener((message, sender, respond) => {
