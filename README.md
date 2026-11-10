@@ -428,7 +428,7 @@ python -m PyInstaller --clean -y pdownloader.spec
 python -m PyInstaller --clean -y P-Downloader-Portable.spec
 
 # Inno Setup Windows installer
-build_installer.bat 1.0.1
+build_installer.bat 1.1.0
 ```
 
 ### 2. Linux Standalone Bundle
@@ -442,8 +442,8 @@ tar -czvf P-Downloader-v1.1.0-Linux-x64.tar.gz -C dist P-Downloader
 
 ## 🤖 GitHub Actions Automated Releases
 
-When a version tag is pushed (e.g. `v1.0.0`), the [`.github/workflows/release.yml`](.github/workflows/release.yml) workflow automatically:
-1. Runs all 23 unit & integration test suites.
+When a version tag is pushed (e.g. `v1.1.0`), the [`.github/workflows/release.yml`](.github/workflows/release.yml) workflow automatically:
+1. Runs all unit, integration, and browser test suites.
 2. Compiles the Windows Setup `.exe`, portable `.exe`, and portable `.zip`.
 3. Compiles the Linux standalone portable package `.tar.gz`.
 4. Bundles the Chrome/Edge WebExtension `.zip`.
@@ -452,7 +452,7 @@ When a version tag is pushed (e.g. `v1.0.0`), the [`.github/workflows/release.ym
 
 To trigger a release manually:
 1. Go to **Actions** → **Release** in your GitHub repository.
-2. Click **Run workflow**, specify the version (e.g. `1.0.0`), and run.
+2. Click **Run workflow**, specify the version (e.g. `1.1.0`), and run.
 
 ---
 
