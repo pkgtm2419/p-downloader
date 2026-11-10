@@ -215,3 +215,16 @@ class DownloadDB:
                     self.conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, str(value)))
             except Exception:
                 pass
+
+    def get_typed_setting(self, key: str, default: Any = None) -> Any:
+        from core.settings import from_db_string, get_setting_def
+        raw = self.get_setting(key, "")
+        if raw == "":
+            definition = get_setting_def(key)
+            return definition.default if definition and default is None else default
+        return from_db_string(key, raw, default)
+
+    def set_typed_setting(self, key: str, value: Any):
+        from core.settings import to_db_string
+        db_str = to_db_string(key, value)
+        self.set_setting(key, db_str)
