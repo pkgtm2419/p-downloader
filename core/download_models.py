@@ -13,7 +13,11 @@ class CaptureMode(str, Enum):
 class DownloadKind(str, Enum):
     HTTP = "http"
     HLS = "hls"
-    YOUTUBE = "youtube"
+    DASH = "dash"
+    MEDIA = "media"
+    YOUTUBE = "youtube"  # Retained for backwards compatibility
+    FTP = "ftp"
+    TORRENT = "torrent"
 
 @dataclass(frozen=True)
 class BrowserRequestContext:

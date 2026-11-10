@@ -58,26 +58,27 @@ def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = N
         from core.ftp_downloader import probe_ftp
         return probe_ftp(url, timeout=timeout)
 
-    # Check if YouTube URL and probe with yt-dlp
+    # Check if streaming media URL (YouTube, Vimeo, Reddit, X, TikTok, Twitch, etc.)
     try:
-        from core.youtube_downloader import is_youtube_url, probe_youtube
-        if is_youtube_url(url):
-            yt_info = probe_youtube(url, timeout_sec=min(timeout, 8))
+        from core.extractor import is_media_url, probe_media
+        if is_media_url(url):
+            media_info = probe_media(url, timeout_sec=min(timeout, 8), headers=headers)
             return {
                 "url": url,
                 "final_url": url,
-                "filename": yt_info.get("filename", "YouTube_Video.mp4"),
-                "total_bytes": yt_info.get("total_bytes", 0),
+                "filename": media_info.get("filename", "Video.mp4"),
+                "total_bytes": media_info.get("total_bytes", 0),
                 "supports_range": True,
-                "is_youtube": True,
-                "is_playlist": yt_info.get("is_playlist", False),
-                "playlist_title": yt_info.get("title", ""),
-                "entries": yt_info.get("entries", []),
-                "count": yt_info.get("count", 0),
-                "thumbnail": yt_info.get("thumbnail", ""),
-                "duration": yt_info.get("duration", 0),
-                "formats": yt_info.get("formats", []),
-                "selectable_formats": yt_info.get("selectable_formats", [])
+                "is_media": True,
+                "is_youtube": True,  # Maintained for UI dialog format selectors
+                "is_playlist": media_info.get("is_playlist", False),
+                "playlist_title": media_info.get("title", ""),
+                "entries": media_info.get("entries", []),
+                "count": media_info.get("count", 0),
+                "thumbnail": media_info.get("thumbnail", ""),
+                "duration": media_info.get("duration", 0),
+                "formats": media_info.get("formats", []),
+                "selectable_formats": media_info.get("selectable_formats", [])
             }
     except Exception:
         pass

@@ -22,10 +22,10 @@ All changes strictly preserve P-Downloader's unique architectural strengths:
 - [x] **REQ-FIX-04**: Firefox Extension Compatibility — Fix background scripts in `manifest.firefox.json` and remove top-level `importScripts` in `background.js` to restore Firefox compatibility.
 
 ### Phase 1: Universal Video Extractor & HLS/DASH Overhaul
-- [ ] **REQ-VID-01**: Unified Task Router — Implement `core/router.py` to route URLs by protocol, extension, and content-type without domain restrictions.
-- [ ] **REQ-VID-02**: Universal Media Extraction — Replace `youtube_downloader.py` with `core/extractor.py`. Remove `is_youtube_url` restrictions. Support 1,000+ streaming sites (Vimeo, X, TikTok, Reddit, Twitch, news sites) with multi-audio, subtitle extraction, and DRM detection.
-- [ ] **REQ-VID-03**: Multi-Threaded Fragment Acceleration — Accelerate HLS/DASH fragment downloads using concurrent chunk workers (`concurrent_fragment_downloads: 8`).
-- [ ] **REQ-VID-04**: Extractor Self-Updater — Standalone updater in `core/updater_ytdlp.py` querying GitHub releases.
+- [x] **REQ-VID-01**: Unified Task Router — Implement `core/router.py` to route URLs by protocol, extension, and content-type without domain restrictions.
+- [x] **REQ-VID-02**: Universal Media Extraction — Replace `youtube_downloader.py` with `core/extractor.py`. Remove `is_youtube_url` restrictions. Support 1,000+ streaming sites (Vimeo, X, TikTok, Reddit, Twitch, news sites) with multi-audio, subtitle extraction, and DRM detection.
+- [x] **REQ-VID-03**: Multi-Threaded Fragment Acceleration — Accelerate HLS/DASH fragment downloads using concurrent chunk workers (`concurrent_fragment_downloads: 8`).
+- [x] **REQ-VID-04**: Extractor Self-Updater — Standalone updater in `core/updater_ytdlp.py` querying GitHub releases.
 
 ### Phase 2: BitTorrent Swarm Client & Checksum Verification
 - [ ] **REQ-TOR-01**: BitTorrent Engine Integration — Real P2P swarm downloads via `python-libtorrent` in `core/torrent.py` supporting magnet links, DHT, PeX, trackers, and selective file exclusion.

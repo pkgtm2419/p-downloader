@@ -8,11 +8,11 @@ Based on `p-downloader-master-feature-and-optimization-plan.md`.
 - [x] Task 0.3: Fix HLS AES-128 Sequence IV & PKCS#7 Unpadding & Pause Crash (REQ-FIX-03)
 - [x] Task 0.4: Fix Firefox Extension MV2 Compatibility & MV3 Fallback (REQ-FIX-04)
 
-## Phase 1: Universal Video Extractor & HLS/DASH Overhaul
-- [ ] Task 1.1: Intelligent URL & Content-Type Router (REQ-VID-01)
-- [ ] Task 1.2: Refactor to Universal `core/extractor.py` (REQ-VID-02)
-- [ ] Task 1.3: Multi-Threaded Fragment Acceleration (REQ-VID-03)
-- [ ] Task 1.4: Extractor Self-Updater Module (REQ-VID-04)
+## Phase 1: Universal Video Extractor & HLS/DASH Overhaul (Completed)
+- [x] Task 1.1: Intelligent URL & Content-Type Router (REQ-VID-01)
+- [x] Task 1.2: Refactor to Universal `core/extractor.py` (REQ-VID-02)
+- [x] Task 1.3: Multi-Threaded Fragment Acceleration (REQ-VID-03)
+- [x] Task 1.4: Extractor Self-Updater Module (REQ-VID-04)
 
 ## Phase 2: BitTorrent Swarm Client & Integrity Verification
 - [ ] Task 2.1: In-Process BitTorrent Client via `python-libtorrent` (REQ-TOR-01)

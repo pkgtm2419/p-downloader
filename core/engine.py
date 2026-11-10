@@ -81,8 +81,8 @@ class DownloadEngine:
             except Exception:
                 pass
 
-        from core.youtube_downloader import is_youtube_url
-        is_yt = is_youtube_url(url) or (page_url and is_youtube_url(page_url))
+        from core.extractor import is_media_url
+        is_yt = is_media_url(url) or (page_url and is_media_url(page_url))
 
         # Check if filename is missing or a generic route name (like 'watch')
         needs_filename = not filename or is_generic_route_name(filename)
@@ -136,10 +136,10 @@ class DownloadEngine:
 
         task_id = str(uuid.uuid4())[:8]
 
-        # Automatic YouTube routing
+        # Automatic streaming media routing (YouTube, Vimeo, Reddit, X, TikTok, Twitch, etc.)
         if is_yt:
-            from core.youtube_downloader import YouTubeDownloadTask
-            task = YouTubeDownloadTask(
+            from core.extractor import UniversalMediaTask
+            task = UniversalMediaTask(
                 task_id=task_id,
                 url=url,
                 save_path=save_path,
@@ -245,11 +245,10 @@ class DownloadEngine:
                 except Exception:
                     pass
 
-            from core.youtube_downloader import is_youtube_url
+            from core.extractor import is_media_url, UniversalMediaTask
             kind = row.get("kind", "")
-            if kind == "youtube" or is_youtube_url(row["url"]):
-                from core.youtube_downloader import YouTubeDownloadTask
-                task = YouTubeDownloadTask(
+            if kind in ("youtube", "media") or is_media_url(row["url"]):
+                task = UniversalMediaTask(
                     task_id=task_id,
                     url=row["url"],
                     save_path=row["save_path"],
