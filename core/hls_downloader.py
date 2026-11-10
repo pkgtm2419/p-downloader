@@ -69,17 +69,24 @@ class HLSParser:
     @staticmethod
     def parse_media_playlist(content: str, base_url: str) -> Dict[str, Any]:
         """
-        Parses media playlist segments, duration, and encryption keys.
+        Parses media playlist segments, duration, media sequence number, and encryption keys.
         """
         segments = []
         key_info = None
         total_duration = 0.0
+        media_sequence = 0
 
         lines = [line.strip() for line in content.splitlines() if line.strip()]
         current_duration = 0.0
 
         for line in lines:
-            if line.startswith("#EXT-X-KEY:"):
+            if line.startswith("#EXT-X-MEDIA-SEQUENCE:"):
+                try:
+                    media_sequence = int(line.split(":")[1].strip())
+                except Exception:
+                    media_sequence = 0
+
+            elif line.startswith("#EXT-X-KEY:"):
                 # Parse encryption key: METHOD=AES-128,URI="...",IV=0x...
                 method_match = re.search(r'METHOD=([^,\s]+)', line)
                 uri_match = re.search(r'URI="([^"]+)"', line)
@@ -102,10 +109,12 @@ class HLSParser:
 
             elif not line.startswith("#"):
                 seg_url = urljoin(base_url, line)
+                seq_num = media_sequence + len(segments)
                 segments.append({
                     "url": seg_url,
                     "duration": current_duration,
-                    "key_info": key_info
+                    "key_info": key_info,
+                    "sequence_number": seq_num
                 })
                 total_duration += current_duration
                 current_duration = 0.0
@@ -114,7 +123,8 @@ class HLSParser:
             "segments": segments,
             "total_duration": total_duration,
             "segment_count": len(segments),
-            "key_info": key_info
+            "key_info": key_info,
+            "media_sequence": media_sequence
         }
 
 
@@ -242,7 +252,7 @@ class HLSDownloader:
 
             def download_segment(index: int, seg_info: Dict[str, Any]):
                 if self.is_cancelled or self.is_paused:
-                    return None
+                    return index, None
                 seg_url = seg_info["url"]
                 seg_path = os.path.join(temp_dir, f"seg_{index:06d}.ts")
 
@@ -252,19 +262,31 @@ class HLSDownloader:
                         r.raise_for_status()
                         data = r.content
 
-                        # Optional AES-128 decryption
+                        # Optional AES-128 decryption (RFC 8216 Section 5.2)
                         if aes_key:
                             try:
                                 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
                                 from cryptography.hazmat.backends import default_backend
-                                iv = seg_info["key_info"].get("iv")
+                                from cryptography.hazmat.primitives import padding
+
+                                iv = seg_info.get("key_info", {}).get("iv") if seg_info.get("key_info") else None
                                 if iv:
-                                    iv_bytes = bytes.fromhex(iv.replace("0x", "").zfill(32))
+                                    iv_clean = iv.replace("0x", "").replace("0X", "").zfill(32)
+                                    iv_bytes = bytes.fromhex(iv_clean)
                                 else:
-                                    iv_bytes = index.to_bytes(16, byteorder="big")
+                                    seq_num = seg_info.get("sequence_number", index)
+                                    iv_bytes = seq_num.to_bytes(16, byteorder="big")
+
                                 cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv_bytes), backend=default_backend())
                                 decryptor = cipher.decryptor()
-                                data = decryptor.update(data) + decryptor.finalize()
+                                raw_decrypted = decryptor.update(data) + decryptor.finalize()
+
+                                # Apply PKCS#7 unpadding if stream is padded
+                                try:
+                                    unpadder = padding.PKCS7(128).unpadder()
+                                    data = unpadder.update(raw_decrypted) + unpadder.finalize()
+                                except Exception:
+                                    data = raw_decrypted
                             except ImportError:
                                 # cryptography not installed, write raw data
                                 pass
@@ -294,21 +316,30 @@ class HLSDownloader:
                             raise
                         time.sleep(0.5)
 
-                return None
+                return index, None
 
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {executor.submit(download_segment, i, seg): i for i, seg in enumerate(segments)}
                 for future in as_completed(futures):
                     if self.is_cancelled:
                         break
-                    idx, path = future.result()
-                    if path:
-                        segment_files[idx] = path
+                    res = future.result()
+                    if res and res[1]:
+                        segment_files[res[0]] = res[1]
 
             if self.is_cancelled:
                 self.status = "cancelled"
                 self._notify()
                 return
+
+            if self.is_paused:
+                self.status = "paused"
+                self._notify()
+                return
+
+            # Check if all segments were successfully downloaded
+            if any(p is None for p in segment_files):
+                raise RuntimeError(f"HLS download incomplete: {segment_files.count(None)} segments missing.")
 
             # Merging segments into final file
             self.status = "merging"

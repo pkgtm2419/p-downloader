@@ -8,12 +8,12 @@
 
 ## Task Queue (Phase 0)
 - [x] Task 0.1: Context & Proxy Propagation Across All Network Layers (REQ-FIX-01) — Commit `d3ec5d9`
-- [ ] Task 0.2: Implement RFC 959 / 3659 Resilient FTP Client (REQ-FIX-02)
+- [x] Task 0.2: Implement RFC 959 / 3659 Resilient FTP Client (REQ-FIX-02) — Commit `d473da8`
 - [ ] Task 0.3: Fix HLS AES-128 Sequence IV & PKCS#7 Unpadding & Pause Crash (REQ-FIX-03)
 - [ ] Task 0.4: Fix Firefox Extension MV2 Compatibility & MV3 Fallback (REQ-FIX-04)
 
 ## Next Task
-- Task 0.2: Implement RFC 959 / 3659 Resilient FTP Client (REQ-FIX-02)
+- Task 0.3: Fix HLS AES-128 Sequence IV & PKCS#7 Unpadding & Pause Crash (REQ-FIX-03)
 
 ## Next Phase
 - Phase 1: Universal Video Extractor & HLS/DASH Overhaul (REQ-VID-01 through REQ-VID-04)
