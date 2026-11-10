@@ -26,6 +26,8 @@ from core import __version__
 from core.engine import DownloadEngine
 from core.segment import DownloadTask
 from core.network_binder import NetworkManager
+from gui.models.download_table_model import DownloadTableModel
+from gui.controllers.download_controller import DownloadController
 from .styles import MAIN_STYLESHEET, format_bytes, format_speed, format_eta
 from .add_dialog import AddDownloadDialog
 from .download_dialog import DownloadDialog
@@ -52,6 +54,8 @@ class MainWindow(QMainWindow):
     def __init__(self, engine: DownloadEngine):
         super().__init__()
         self.engine = engine
+        self.controller = DownloadController(engine)
+        self.table_model = DownloadTableModel(self)
         self.active_dialogs = {}
         self.last_clipboard_text = ""
         self.sidebar_is_collapsed = True
@@ -790,36 +794,20 @@ class MainWindow(QMainWindow):
 
     # ================= Table Loading & Rendering =================
     def _load_table_data(self):
-        items = self.engine.db.get_all_downloads()
         filter_key = self._get_current_filter()
+        cat = None
+        st = None
+        if filter_key in ("compressed", "documents", "music", "programs", "video"):
+            cat = filter_key.capitalize()
+        elif filter_key in ("downloading", "paused", "error"):
+            st = filter_key
+        elif filter_key == "finished":
+            st = "completed"
 
-        filtered = []
-        for item in items:
-            cat = item.get("category", "")
-            st = item.get("status", "")
-            if filter_key == "all":
-                filtered.append(item)
-            elif filter_key == "compressed" and cat == "Compressed":
-                filtered.append(item)
-            elif filter_key == "documents" and cat == "Documents":
-                filtered.append(item)
-            elif filter_key == "music" and cat == "Music":
-                filtered.append(item)
-            elif filter_key == "programs" and cat == "Programs":
-                filtered.append(item)
-            elif filter_key == "video" and cat == "Video":
-                filtered.append(item)
-            elif filter_key == "downloading" and st == "downloading":
-                filtered.append(item)
-            elif filter_key == "finished" and st == "completed":
-                filtered.append(item)
-            elif filter_key == "paused" and st == "paused":
-                filtered.append(item)
-            elif filter_key == "error" and st == "error":
-                filtered.append(item)
-            elif filter_key in ("queue_main", "queue_sync"):
-                filtered.append(item)
+        items = self.controller.get_all_downloads()
+        filtered = self.controller.filter_downloads(category=cat, status=st)
 
+        self.table_model.set_items(filtered)
         self.table.setRowCount(len(filtered))
         for row, item in enumerate(filtered):
             self._set_table_row(row, item)
@@ -989,9 +977,9 @@ class MainWindow(QMainWindow):
         # Dynamic context actions with Lucide icons (no emojis)
         if status == "downloading":
             act_pause = menu.addAction(get_icon("pause", COLOR_SLATE, 16), "Pause Download")
-            act_pause.triggered.connect(lambda: (self.engine.pause_download(task_id), self._load_table_data()))
+            act_pause.triggered.connect(lambda: (self.controller.pause_download(task_id), self._load_table_data()))
             act_stop = menu.addAction(get_icon("square", COLOR_SLATE, 16), "Stop / Cancel")
-            act_stop.triggered.connect(lambda: (self.engine.stop_download(task_id, False), self._load_table_data()))
+            act_stop.triggered.connect(lambda: (self.controller.stop_download(task_id, False), self._load_table_data()))
             act_details = menu.addAction(get_icon("info", COLOR_SLATE, 16), "View Details...")
             if task:
                 act_details.triggered.connect(lambda: self.open_transfer_dialog(task))
@@ -1000,43 +988,43 @@ class MainWindow(QMainWindow):
 
         elif status == "paused":
             act_resume = menu.addAction(get_icon("play", COLOR_SLATE, 16), "Resume Download")
-            act_resume.triggered.connect(lambda: (self.engine.resume_download(task_id), self._load_table_data()))
+            act_resume.triggered.connect(lambda: (self.controller.resume_download(task_id), self._load_table_data()))
             act_stop = menu.addAction(get_icon("square", COLOR_SLATE, 16), "Stop / Cancel")
-            act_stop.triggered.connect(lambda: (self.engine.stop_download(task_id, False), self._load_table_data()))
+            act_stop.triggered.connect(lambda: (self.controller.stop_download(task_id, False), self._load_table_data()))
             act_refresh = menu.addAction(get_icon("rotate-cw", COLOR_SLATE, 16), "Refresh Link...")
             act_refresh.triggered.connect(lambda: self.show_refresh_dialog(task_id))
             menu.addSeparator()
             act_remove = menu.addAction(get_icon("trash-2", COLOR_SLATE, 16), "Remove from List")
-            act_remove.triggered.connect(lambda: (self.engine.delete_download(task_id, False), self._load_table_data()))
+            act_remove.triggered.connect(lambda: (self.controller.delete_download(task_id, False), self._load_table_data()))
 
         elif status == "completed":
             act_open = menu.addAction(get_icon("external-link", COLOR_SLATE, 16), "Open File")
             act_open.setEnabled(file_exists)
             if file_exists:
-                act_open.triggered.connect(lambda: os.startfile(save_path))
+                act_open.triggered.connect(lambda: self.controller.open_file(task_id))
 
             act_folder = menu.addAction(get_icon("folder", COLOR_SLATE, 16), "Open Containing Folder")
             dir_exists = bool(save_path and os.path.exists(os.path.dirname(save_path)))
             act_folder.setEnabled(dir_exists)
             if dir_exists:
-                act_folder.triggered.connect(lambda: subprocess.run(["explorer.exe", f"/select,{os.path.normpath(save_path)}"]))
+                act_folder.triggered.connect(lambda: self.controller.open_folder(task_id))
 
             act_copy = menu.addAction(get_icon("copy", COLOR_SLATE, 16), "Copy Download Link")
             act_copy.triggered.connect(lambda: QApplication.clipboard().setText(item["url"]))
             menu.addSeparator()
             act_remove = menu.addAction(get_icon("trash-2", COLOR_SLATE, 16), "Remove from List")
-            act_remove.triggered.connect(lambda: (self.engine.delete_download(task_id, False), self._load_table_data()))
+            act_remove.triggered.connect(lambda: (self.controller.delete_download(task_id, False), self._load_table_data()))
             act_del_file = menu.addAction(get_icon("trash", COLOR_DANGER, 16), "Delete File from Disk")
             act_del_file.triggered.connect(lambda: self._confirm_delete_disk(task_id))
 
         else:  # Error or queued
             act_retry = menu.addAction(get_icon("rotate-cw", COLOR_SLATE, 16), "Retry Download")
-            act_retry.triggered.connect(lambda: (self.engine.resume_download(task_id), self._load_table_data()))
+            act_retry.triggered.connect(lambda: (self.controller.resume_download(task_id), self._load_table_data()))
             act_refresh = menu.addAction(get_icon("rotate-cw", COLOR_SLATE, 16), "Refresh Link...")
             act_refresh.triggered.connect(lambda: self.show_refresh_dialog(task_id))
             menu.addSeparator()
             act_remove = menu.addAction(get_icon("trash-2", COLOR_SLATE, 16), "Remove from List")
-            act_remove.triggered.connect(lambda: (self.engine.delete_download(task_id, False), self._load_table_data()))
+            act_remove.triggered.connect(lambda: (self.controller.delete_download(task_id, False), self._load_table_data()))
             if file_exists:
                 act_del_file = menu.addAction(get_icon("trash", COLOR_DANGER, 16), "Delete File from Disk")
                 act_del_file.triggered.connect(lambda: self._confirm_delete_disk(task_id))
@@ -1219,13 +1207,11 @@ class MainWindow(QMainWindow):
         return task_ids
 
     def _resume_selected(self):
-        for task_id in self._get_selected_task_ids():
-            self.engine.resume_download(task_id)
+        self.controller.resume_multiple(self._get_selected_task_ids())
         self._load_table_data()
 
     def _pause_selected(self):
-        for task_id in self._get_selected_task_ids():
-            self.engine.pause_download(task_id)
+        self.controller.pause_multiple(self._get_selected_task_ids())
         self._load_table_data()
 
     def _delete_selected(self):
@@ -1238,8 +1224,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if res == QMessageBox.StandardButton.Yes:
-            for task_id in task_ids:
-                self.engine.delete_download(task_id, delete_file=False)
+            self.controller.delete_multiple(task_ids, delete_files=False)
             self._load_table_data()
 
     def _clear_completed(self):
