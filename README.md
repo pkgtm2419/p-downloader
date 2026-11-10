@@ -39,10 +39,33 @@
 - **Dynamic Connection Slicing**: Splits files into up to **32 concurrent streams** using HTTP `Range` headers to bypass server-side single-connection throttling.
 - **Sparse File Pre-allocation**: Instantly reserves file capacity on disk, reducing fragmentation and eliminating write latency.
 
-### 🎬 In-Page Video Sniffer & HLS / DASH Streaming
-- **Browser Media Sniffing**: In-page floating download pill detects HTML5 video, streaming playlists, and audio tracks.
-- **HLS (.m3u8) Chunk Processor**: Downloads and concatenates fragmented live and VoD streaming video segments.
-- **FFmpeg Auto-Muxing**: Merges separated 1080p/4K video and high-bitrate audio streams into finished MP4/MKV files.
+### 🎬 Universal Video Extraction & Streaming Engine (yt-dlp + FFmpeg)
+- **1,000+ Video & Music Platforms**: Universal extractor powered by yt-dlp and FFmpeg seamlessly downloads full video or audio from YouTube, Vimeo, Twitter/X, TikTok, Reddit, Bilibili, Dailymotion, Twitch, Soundcloud, and hundreds more.
+- **HLS (.m3u8) & DASH (.mpd) Engine**: Full support for fMP4 CMAF #EXT-X-MAP, AES-128 key rotation, separate audio rendition muxing (#EXT-X-MEDIA:TYPE=AUDIO), and continuous live stream recording.
+- **Standalone yt-dlp Updater**: One-click or scheduled updater downloads signed releases from official GitHub assets with sha256 checksum verification and rollback.
+
+### 🌐 Protocols & Swarm Downloads (FTP, BitTorrent & Debrid)
+- **Resilient FTP & FTPS**: Full RFC 959 / 3659 client with TLS encryption (PROT P), REST restart markers, and passive mode.
+- **Swarm BitTorrent Client**: Built-in BitTorrent task with tracker communication, piece visualizer map, and RSS automatic feed watcher.
+- **Cloud Debrid Integration**: Multi-hoster support for Real-Debrid, AllDebrid, and Premiumize with automatic link un-restriction.
+- **Multi-Volume Archive Extraction**: Unpacks .zip, .rar, .7z, and multi-volume .part01.rar / .z01 archives automatically upon download completion.
+
+### 🔒 Privacy, Security & Anti-Leak (VPN Kill Switch & DoH)
+- **VPN Fail-Closed Kill Switch**: Locks downloads to a dedicated VPN network adapter and halts all network traffic if the tunnel drops.
+- **Encrypted DNS-over-HTTPS (DoH)**: Resolves hostnames via Cloudflare, Google, or Quad9 over TLS, bypassing ISP DNS tampering and SNI snooping.
+- **SSRF IP Pinning & Private IP Blocking**: Validates resolved IPs and pins connections directly to validated socket addresses to block Server-Side Request Forgery.
+
+### 🤖 Remote Automation, Headless Daemon & MCP Server
+- **Web Remote Management Server**: Lightweight HTTP/WebSocket dashboard to monitor, pause, and add downloads remotely from mobile or browser.
+- **Headless Docker & Daemon Mode**: Run without X11/Qt dependencies on NAS, Linux servers, and Docker containers (main_headless.py).
+- **MCP Server for AI Assistants**: Model Context Protocol (MCP) tool server allowing AI assistants (Claude, Gemini, Antigravity) to query status, inspect speeds, and dispatch downloads directly.
+- **IDM-Compatible CLI Switches**: Drop-in CLI replacement accepting /d [URL], /p [PATH], /f [FILENAME], /q, /s, and /a.
+
+### 🎨 Modern UI, 9 Themes, Accessibility & AOT Native Compilation
+- **9 Modern Curated Themes**: Tokyo Night, Nord, Cyberpunk, Solarized Dark, Gruvbox, Monokai Pro, Catppuccin Mocha, Modern Dark, and Classic Light.
+- **High-Accessibility Screen Reader Support**: Dedicated Qt accessible names and descriptions for Narrator, NVDA, and Orca.
+- **Multilingual & RTL Mirroring**: Fully translated dictionary with right-to-left UI mirroring for Arabic, Hebrew, and Persian.
+- **Nuitka AOT Compilation**: Produces C-compiled native binaries with <30 MB RAM usage, instant startup, and zero Python runtime dependencies (scripts/build_native.py).
 
 ### 🌐 Multi-Network Bandwidth Aggregation (Bonding)
 - **Multi-Adapter Pooling**: Automatically detects all active network interfaces (e.g., Ethernet + Wi-Fi + 5G USB/Hotspot tethering).
