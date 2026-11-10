@@ -21,39 +21,14 @@ DEFAULT_MEDIA_EXTENSIONS = {
     "images": {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
 }
 
-def is_safe_external_url(url: str) -> bool:
+from core.net.resolver_pin import is_safe_url as _net_is_safe_url
+
+def is_safe_external_url(url: str, custom_resolver: Optional[Callable[[str], List[str]]] = None) -> bool:
     """
     Prevents SSRF and internal port scanning by blocking private/loopback IP addresses.
-    Validates scheme, hostname, IP literals, and resolved DNS addresses.
+    Validates scheme, hostname, IP literals (IPv4/IPv6), and resolved DNS addresses across A and AAAA.
     """
-    try:
-        parsed = urlparse(url)
-        if parsed.scheme not in ("http", "https"):
-            return False
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-        hostname_clean = hostname.strip("[]").lower()
-        if hostname_clean in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
-            return False
-
-        # 1. Check if hostname is an IP address literal
-        try:
-            ip = ipaddress.ip_address(hostname_clean)
-        except ValueError:
-            # 2. Resolve DNS for hostname
-            try:
-                resolved_ip = socket.gethostbyname(hostname_clean)
-                ip = ipaddress.ip_address(resolved_ip)
-            except Exception:
-                return False
-
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-            return False
-
-        return True
-    except Exception:
-        return False
+    return _net_is_safe_url(url, custom_resolver=custom_resolver)
 
 class WebSpider:
     def __init__(
