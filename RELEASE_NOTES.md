@@ -8,7 +8,8 @@ P-Downloader v1.1.0 is our biggest architectural update yet, transforming P-Down
 
 | Package | Platform | Direct Download |
 | :--- | :--- | :--- |
-| 🪟 **Windows Setup Installer** | Windows 10/11 (x64) | [**Download P-Downloader-Setup.exe**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Setup.exe) |
+| 🪟 **Windows 11 / 10 1-Click Installer (Zero SAC Blocks)** | Windows 11/10 (x64) | [**Download P-Downloader-Windows-Installer.zip**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Windows-Installer.zip) |
+| 🪟 **Windows Setup Wizard** *(requires unblock if SAC active)* | Windows 10/11 (x64) | [**Download P-Downloader-Setup.exe**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Setup.exe) |
 | 🪟 **Windows Standalone Portable** | Windows 10/11 (x64) | [**Download P-Downloader-Portable.exe**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Portable.exe) |
 | 🪟 **Windows Portable Archive** | Windows (x64) | [**Download P-Downloader-Windows-x64-Portable.zip**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Windows-x64-Portable.zip) |
 | 🐧 **Linux Standalone Tarball** | Linux (x64) | [**Download P-Downloader-Linux-x64.tar.gz**](https://github.com/pkgtm2419/p-downloader/releases/download/v1.1.0/P-Downloader-Linux-x64.tar.gz) |

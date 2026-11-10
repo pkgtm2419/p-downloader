@@ -13,6 +13,12 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
+copy /y "%~dp0install_windows.bat" "%~dp0dist\P-Downloader\" >nul
+copy /y "%~dp0setup.bat" "%~dp0dist\P-Downloader\" >nul
+copy /y "%~dp0uninstall_windows.bat" "%~dp0dist\P-Downloader\" >nul
+if not exist "%~dp0dist\P-Downloader\scripts" mkdir "%~dp0dist\P-Downloader\scripts"
+copy /y "%~dp0scripts\install_windows.py" "%~dp0dist\P-Downloader\scripts\" >nul
+
 echo.
 echo [2/2] Generating Windows Setup Installer (Inno Setup)...
 set "ISCC_EXE="

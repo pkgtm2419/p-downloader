@@ -115,12 +115,20 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path windows-assets | Out-Null
+          # Copy installers into dist folder so ZIP contains 1-click installer
+          Copy-Item "install_windows.bat" "dist\P-Downloader\"
+          Copy-Item "setup.bat" "dist\P-Downloader\"
+          Copy-Item "uninstall_windows.bat" "dist\P-Downloader\"
+          New-Item -ItemType Directory -Force -Path "dist\P-Downloader\scripts" | Out-Null
+          Copy-Item "scripts\install_windows.py" "dist\P-Downloader\scripts\"
+
           Copy-Item "Output\P-Downloader-Setup.exe" "windows-assets\P-Downloader-Setup-v$env:RELEASE_VERSION.exe"
           Copy-Item "Output\P-Downloader-Setup.exe" "windows-assets\P-Downloader-Setup.exe"
           Copy-Item "dist\P-Downloader-Portable.exe" "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Portable.exe"
           Copy-Item "dist\P-Downloader-Portable.exe" "windows-assets\P-Downloader-Portable.exe"
           Compress-Archive -Path "dist\P-Downloader\*" -DestinationPath "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Windows-x64-Portable.zip" -CompressionLevel Optimal
           Copy-Item "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Windows-x64-Portable.zip" "windows-assets\P-Downloader-Windows-x64-Portable.zip"
+          Copy-Item "windows-assets\P-Downloader-v$env:RELEASE_VERSION-Windows-x64-Portable.zip" "windows-assets\P-Downloader-Windows-Installer.zip"
           Compress-Archive -Path "browser_extension\*" -DestinationPath "windows-assets\pdownloader-browser-extension-v$env:RELEASE_VERSION.zip" -CompressionLevel Optimal
           Copy-Item "windows-assets\pdownloader-browser-extension-v$env:RELEASE_VERSION.zip" "windows-assets\pdownloader-browser-extension.zip"
 

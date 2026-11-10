@@ -162,7 +162,8 @@ You can download compiled release packages from the [**GitHub Releases**](https:
 
 | Package File | Operating System | Description | Direct Download |
 | :--- | :--- | :--- | :--- |
-| **P-Downloader-Setup.exe** | **Windows** (10/11 x64) | Full Windows Setup Installer with Desktop icon & Startup entry | [📥 **Download Setup (.exe)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Setup.exe) |
+| **P-Downloader-Windows-Installer.zip** | **Windows** (11/10 x64) | **Recommended for Windows 11**: 1-click installer (100% immune to Smart App Control blocks) | [🚀 **Download 1-Click Installer (.zip)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Windows-Installer.zip) |
+| **P-Downloader-Setup.exe** | **Windows** (10/11 x64) | Traditional Inno Setup Wizard installer (requires unblocking if SAC is enabled) | [📥 **Download Setup (.exe)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Setup.exe) |
 | **P-Downloader-Portable.exe** | **Windows** (10/11 x64) | Zero-install standalone executable for USB drives / portable usage | [⚡ **Download Portable (.exe)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Portable.exe) |
 | **P-Downloader-Windows-x64-Portable.zip** | **Windows** (x64) | Standalone portable folder with executable and all bundled libraries | [📦 **Download Archive (.zip)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Windows-x64-Portable.zip) |
 | **P-Downloader-Linux-x64.tar.gz** | **Linux** (x64) | Standalone Linux portable package (tarball) | [🐧 **Download Linux (.tar.gz)**](https://github.com/pkgtm2419/p-downloader/releases/latest/download/P-Downloader-Linux-x64.tar.gz) |
