@@ -182,6 +182,18 @@ class DownloadEngine:
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
             )
+        # Automatic BitTorrent / Magnet routing
+        elif url.lower().startswith("magnet:?") or (filename and filename.lower().endswith(".torrent")) or url.lower().endswith(".torrent"):
+            from core.torrent import TorrentDownloadTask
+            task = TorrentDownloadTask(
+                task_id=task_id,
+                url=url,
+                save_path=save_path,
+                connections=connections,
+                on_progress=self._on_task_progress,
+                on_complete=self._on_task_complete,
+                on_error=self._on_task_error
+            )
         else:
             task = DownloadTask(
                 task_id=task_id,
@@ -198,7 +210,8 @@ class DownloadEngine:
 
         import json
         is_ftp = url.lower().startswith(("ftp://", "ftps://"))
-        kind = "youtube" if is_yt else ("hls" if (".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8"))) else ("ftp" if is_ftp else "http"))
+        is_torrent = url.lower().startswith("magnet:?") or (filename and filename.lower().endswith(".torrent")) or url.lower().endswith(".torrent")
+        kind = "youtube" if is_yt else ("hls" if (".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8"))) else ("ftp" if is_ftp else ("torrent" if is_torrent else "http")))
 
         # Save to database
         self.db.add_download({
@@ -278,6 +291,17 @@ class DownloadEngine:
                     save_path=row["save_path"],
                     connections=1,
                     headers=hdrs,
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
+            elif kind == "torrent" or row["url"].lower().startswith("magnet:?") or row["url"].lower().endswith(".torrent"):
+                from core.torrent import TorrentDownloadTask
+                task = TorrentDownloadTask(
+                    task_id=task_id,
+                    url=row["url"],
+                    save_path=row["save_path"],
+                    connections=row.get("connections", 50),
                     on_progress=self._on_task_progress,
                     on_complete=self._on_task_complete,
                     on_error=self._on_task_error

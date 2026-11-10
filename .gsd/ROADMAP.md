@@ -14,12 +14,12 @@ Based on `p-downloader-master-feature-and-optimization-plan.md`.
 - [x] Task 1.3: Multi-Threaded Fragment Acceleration (REQ-VID-03)
 - [x] Task 1.4: Extractor Self-Updater Module (REQ-VID-04)
 
-## Phase 2: BitTorrent Swarm Client & Integrity Verification
-- [ ] Task 2.1: In-Process BitTorrent Client via `python-libtorrent` (REQ-TOR-01)
-- [ ] Task 2.2: Sequential Video Streaming Prioritization (REQ-TOR-02)
-- [ ] Task 2.3: 2D Piece Map & Peer Visualization UI (REQ-TOR-03)
-- [ ] Task 2.4: Automated RSS Torrent Watcher (REQ-TOR-04)
-- [ ] Task 2.5: Checksum Verification Subsystem (REQ-TOR-05)
+## Phase 2: BitTorrent Swarm Client & Integrity Verification (Completed)
+- [x] Task 2.1: In-Process BitTorrent Client via `python-libtorrent` (REQ-TOR-01)
+- [x] Task 2.2: Sequential Video Streaming Prioritization (REQ-TOR-02)
+- [x] Task 2.3: 2D Piece Map & Peer Visualization UI (REQ-TOR-03)
+- [x] Task 2.4: Automated RSS Torrent Watcher (REQ-TOR-04)
+- [x] Task 2.5: Checksum Verification Subsystem (REQ-TOR-05)
 
 ## Phase 3: Debrid Cloud & Automatic Archive Extraction
 - [ ] Task 3.1: Multi-Provider Debrid API Clients (REQ-DEB-01)

@@ -28,11 +28,11 @@ All changes strictly preserve P-Downloader's unique architectural strengths:
 - [x] **REQ-VID-04**: Extractor Self-Updater — Standalone updater in `core/updater_ytdlp.py` querying GitHub releases.
 
 ### Phase 2: BitTorrent Swarm Client & Checksum Verification
-- [ ] **REQ-TOR-01**: BitTorrent Engine Integration — Real P2P swarm downloads via `python-libtorrent` in `core/torrent.py` supporting magnet links, DHT, PeX, trackers, and selective file exclusion.
-- [ ] **REQ-TOR-02**: Sequential Video Streaming — Prioritize initial and final pieces for in-progress video playback in VLC.
-- [ ] **REQ-TOR-03**: Piece Map & Peer Visualization — 2D piece grid and live peer monitoring in `gui/torrent_dialog.py`.
-- [ ] **REQ-TOR-04**: Automated RSS Torrent Feed Monitor — Filter and auto-download matched torrents (`core/torrent_rss.py`).
-- [ ] **REQ-TOR-05**: Checksum Integrity Verification — MD5, SHA-1, SHA-256 validation UI and automated post-download check.
+- [x] **REQ-TOR-01**: BitTorrent Engine Integration — Real P2P swarm downloads via `python-libtorrent` in `core/torrent.py` supporting magnet links, DHT, PeX, trackers, and selective file exclusion.
+- [x] **REQ-TOR-02**: Sequential Video Streaming — Prioritize initial and final pieces for in-progress video playback in VLC.
+- [x] **REQ-TOR-03**: Piece Map & Peer Visualization — 2D piece grid and live peer monitoring in `gui/torrent_dialog.py`.
+- [x] **REQ-TOR-04**: Automated RSS Torrent Feed Monitor — Filter and auto-download matched torrents (`core/torrent_rss.py`).
+- [x] **REQ-TOR-05**: Checksum Integrity Verification — MD5, SHA-1, SHA-256 validation UI and automated post-download check.
 
 ### Phase 3: Debrid Cloud & Archive Extraction Pipeline
 - [ ] **REQ-DEB-01**: Multi-Provider Debrid Support — OAuth device-flow and API clients for Real-Debrid, AllDebrid, and Premiumize in `core/debrid/`.

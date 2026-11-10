@@ -208,3 +208,36 @@ class TransferStore:
                 pass
 
         return final_dest
+
+
+def compute_file_checksum(filepath: str, algorithm: str = "sha256") -> str:
+    """Computes hexadecimal digest (md5, sha1, sha256, sha512) for a local file."""
+    algo = algorithm.lower()
+    hasher = hashlib.new(algo) if algo in hashlib.algorithms_available else hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while True:
+            chunk = f.read(65536)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest().lower()
+
+
+def verify_file_checksum(filepath: str, expected_hash: str) -> tuple:
+    """
+    Verifies a file against an expected hash string.
+    Infers algorithm from hash length: 32 -> md5, 40 -> sha1, 64 -> sha256, 128 -> sha512.
+    Returns (matches: bool, computed_hash: str, algorithm: str).
+    """
+    clean_expected = expected_hash.strip().lower()
+    if len(clean_expected) == 32:
+        algo = "md5"
+    elif len(clean_expected) == 40:
+        algo = "sha1"
+    elif len(clean_expected) == 128:
+        algo = "sha512"
+    else:
+        algo = "sha256"
+
+    actual = compute_file_checksum(filepath, algo)
+    return (actual == clean_expected, actual, algo)
