@@ -213,13 +213,19 @@ class DownloadDialog(QDialog):
         self.lbl_eta = QLabel("Time Left: --:--")
         res_str = "Yes (Multi-threaded)" if self.task.supports_range else "No (Single stream)"
         self.lbl_resume = QLabel(f"Resume: <b>{res_str}</b>")
+        self.lbl_server = QLabel("Server: Resolving...")
+        self.lbl_server.setStyleSheet("color: #64748b; font-size: 11px;")
 
         grid.addWidget(self.lbl_size, 0, 0)
         grid.addWidget(self.lbl_speed, 0, 1)
         grid.addWidget(self.lbl_eta, 1, 0)
         grid.addWidget(self.lbl_resume, 1, 1)
+        grid.addWidget(self.lbl_server, 2, 0, 1, 2)
         p_layout.addLayout(grid)
         main_layout.addWidget(card_prog)
+
+        import threading
+        threading.Thread(target=self._resolve_server_info, daemon=True).start()
 
         # Multi-connection Segments Card
         card_segs = QFrame(self)
@@ -364,6 +370,17 @@ class DownloadDialog(QDialog):
             self.btn_pause.setEnabled(True)
             self.btn_stop.setEnabled(False)
             self.btn_refresh.setVisible(True)
+
+    def _resolve_server_info(self):
+        try:
+            from core.geoip import lookup_server_geoip
+            info = lookup_server_geoip(self.task.url, measure_ping=True)
+            text = f"Server: {info.flag} {info.country_name} ({info.ip})"
+            if info.ping_ms > 0:
+                text += f" - {info.ping_ms:.0f} ms"
+            QTimer.singleShot(0, lambda t=text: self.lbl_server.setText(t))
+        except Exception:
+            QTimer.singleShot(0, lambda: self.lbl_server.setText("Server: Direct connection"))
 
     def _on_refresh_clicked(self):
         p = self.parent()

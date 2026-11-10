@@ -91,7 +91,25 @@ class NetworkManager:
     def _init(self):
         self.interfaces: Dict[str, NetworkInterface] = {}
         self.bonding_enabled: bool = True
+        self.vpn_exclusive_mode: bool = False
+        self.exclusive_interface_ip: Optional[str] = None
+        self.fail_closed_killswitch: bool = False
         self.refresh_interfaces()
+
+    def set_vpn_exclusive(self, ip: Optional[str], enabled: bool = True, fail_closed: bool = True):
+        """
+        Locks all downloads to a designated VPN or network adapter.
+        If fail_closed is True, drops connections immediately when the adapter goes down.
+        """
+        self.vpn_exclusive_mode = enabled
+        self.exclusive_interface_ip = ip if enabled else None
+        self.fail_closed_killswitch = fail_closed if enabled else False
+
+    def is_interface_alive(self, ip: str) -> bool:
+        if not ip:
+            return False
+        self.refresh_interfaces()
+        return ip in self.interfaces
 
     def refresh_interfaces(self) -> List[NetworkInterface]:
         """
@@ -140,8 +158,15 @@ class NetworkManager:
     def get_session_for_interface(self, ip: Optional[str] = None, proxies: Optional[Dict[str, str]] = None) -> requests.Session:
         """
         Creates a requests.Session bound to a specific network interface's IP and proxy.
-        If IP is None or not available, returns a standard unbound Session.
+        If VPN exclusive mode / fail-closed killswitch is active and the target adapter
+        is not available or disconnected, raises ConnectionError to prevent traffic leakage.
         """
+        if self.fail_closed_killswitch or self.vpn_exclusive_mode:
+            target_ip = self.exclusive_interface_ip or ip
+            if not target_ip or not self.is_interface_alive(target_ip):
+                raise ConnectionError(f"Fail-Closed Killswitch: VPN interface {target_ip} is down. Network traffic blocked.")
+            ip = target_ip
+
         session = requests.Session()
         if proxies is None:
             try:
@@ -151,7 +176,7 @@ class NetworkManager:
                 pass
         if proxies:
             session.proxies.update(proxies)
-        if self.bonding_enabled and ip and ip in self.interfaces:
+        if (self.bonding_enabled or self.vpn_exclusive_mode) and ip and ip in self.interfaces:
             try:
                 adapter = SourceAddressAdapter(ip)
                 session.mount("http://", adapter)

@@ -122,8 +122,16 @@ def verify_route(route: NetworkRoute, target_host: str = "127.0.0.1", port: int 
         return RouteHealth(route_id=route.id, reachable=False, latency_ms=elapsed, status=str(e))
 
 
-def get_session_for_route(route: Optional[NetworkRoute], proxies: Optional[Dict[str, str]] = None) -> requests.Session:
+def get_session_for_route(
+    route: Optional[NetworkRoute],
+    proxies: Optional[Dict[str, str]] = None,
+    fail_closed: bool = False
+) -> requests.Session:
     """Return requests.Session bound to the specific network route and proxy."""
+    if fail_closed:
+        if not route or route.oper_state != "up" or route.source_ip in ("0.0.0.0", "::"):
+            raise ConnectionError("Fail-Closed Killswitch: Route is down or unbound.")
+
     session = requests.Session()
     if proxies is None:
         try:
