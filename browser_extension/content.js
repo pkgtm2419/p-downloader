@@ -47,8 +47,25 @@
       resizeObserver.observe(video);
       document.documentElement.appendChild(host);
       const report = () => {
-        const urls = [video.currentSrc, video.src, ...Array.from(video.querySelectorAll('source'), source => source.src)].map(direct).filter(Boolean);
-        if (urls.length) send({action:'remember', items: urls.map(url => ({url, title:document.title}))}).catch(() => {});
+        const directUrls = [video.currentSrc, video.src, ...Array.from(video.querySelectorAll('source'), source => source.src)].map(direct).filter(Boolean);
+        if (directUrls.length) {
+          send({action:'remember', items: directUrls.map(url => ({url, title:document.title}))}).catch(() => {});
+        } else {
+          const rawSrc = video.currentSrc || video.src || '';
+          if (rawSrc.startsWith('blob:')) {
+            send({
+              action: 'remember',
+              items: [{
+                url: location.href,
+                pageUrl: location.href,
+                title: document.title || 'Page Video',
+                format: 'Web Video',
+                mediaKind: 'blob',
+                mime: 'text/html'
+              }]
+            }).catch(() => {});
+          }
+        }
       };
       video.addEventListener('loadedmetadata', report, {signal:listeners.signal});
       record.sourceObserver=new MutationObserver(report);
@@ -62,7 +79,9 @@
       });
       button.addEventListener('click', async event => {
         event.preventDefault(); event.stopPropagation();
-        const url = direct(video.currentSrc || video.src || video.querySelector('source')?.src);
+        const directUrl = direct(video.currentSrc || video.src || video.querySelector('source')?.src);
+        const isBlob = (video.currentSrc || video.src || '').startsWith('blob:');
+        const url = directUrl || (isBlob ? location.href : null);
         {
           const old = shadow.querySelector('.chooser'); if(old) { old.remove(); position(); return; }
           closeChoosers(record);
@@ -75,7 +94,7 @@
             hint.textContent='Choose a format to download';
             const candidates=result?.items||[];
             const youtube=/(^|\.)youtube\.com$/.test(location.hostname);
-            if(!youtube&&url&&!candidates.some(item=>item.url===url)) candidates.unshift({url,title:document.title});
+            if(!youtube&&url&&!candidates.some(item=>item.url===url)) candidates.unshift({url,title:document.title,format:url===location.href?'Web Video':'Media',mediaKind:isBlob?'blob':'media'});
             if (!candidates.length) { hint.textContent=result.notice || (youtube?'Play the video briefly, then reopen this menu. No complete video with audio has been captured yet.':'No direct media links detected. Play the video and try again.'); return; }
             const choices=globalThis.mediaChoices(candidates,{url,poster:video.poster});
             if(!choices.length){hint.textContent='No complete formats detected for this video yet. Play it briefly, then try again.';return;}

@@ -6,9 +6,68 @@ const api = globalThis.browser || chrome;
 const actionApi = api.action || api.browserAction;
 const HOST = 'com.pdownloader.host';
 const CACHE_KEY = 'mediaByTab';
+const REQ_CTX_KEY = 'requestContextByTab';
 let serial = Promise.resolve();
-// Credentials stay in worker memory and are used only for the selected observed URL.
-const requestContext = new Map();
+
+// Session storage with memory fallback for MV2 / environments without storage.session
+const sessionStore = (api.storage && api.storage.session) ? api.storage.session : {
+  _data: {},
+  async get(keys) {
+    if (typeof keys === 'string') return { [keys]: this._data[keys] };
+    const res = {};
+    const keyList = Array.isArray(keys) ? keys : (typeof keys === 'object' && keys !== null ? Object.keys(keys) : []);
+    for (const k of keyList) {
+      if (this._data[k] !== undefined) res[k] = this._data[k];
+    }
+    return res;
+  },
+  async set(items) {
+    Object.assign(this._data, items);
+  },
+  async remove(keys) {
+    const list = Array.isArray(keys) ? keys : [keys];
+    for (const k of list) delete this._data[k];
+  }
+};
+
+// Credentials stay in session storage and worker memory for active tab requests
+const requestContextMem = new Map();
+
+async function getStoredHeaders(tabId, url) {
+  const memTab = requestContextMem.get(tabId);
+  if (memTab?.has(url)) return memTab.get(url);
+  try {
+    const data = await sessionStore.get(REQ_CTX_KEY);
+    const map = data[REQ_CTX_KEY] || {};
+    return map[tabId]?.[url] || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function saveStoredHeaders(tabId, url, headers) {
+  let memTab = requestContextMem.get(tabId);
+  if (!memTab) {
+    memTab = new Map();
+    requestContextMem.set(tabId, memTab);
+    if (requestContextMem.size > 50) requestContextMem.delete(requestContextMem.keys().next().value);
+  }
+  memTab.set(url, headers);
+  if (memTab.size > 100) memTab.delete(memTab.keys().next().value);
+
+  try {
+    const data = await sessionStore.get(REQ_CTX_KEY);
+    const map = data[REQ_CTX_KEY] || {};
+    if (!map[tabId]) map[tabId] = {};
+    map[tabId][url] = headers;
+    const tabKeys = Object.keys(map);
+    if (tabKeys.length > 50) {
+      tabKeys.slice(0, tabKeys.length - 50).forEach(k => delete map[k]);
+    }
+    await sessionStore.set({ [REQ_CTX_KEY]: map });
+  } catch {}
+}
+
 const youtubePlayers=new Map(), youtubeObserved=new Map(), youtubeSabrObserved=new Map(), youtubeSabrSeed=new Map();
 function clearSabrCapture(tabId){
   youtubeSabrObserved.delete(tabId);
@@ -23,22 +82,29 @@ api.webRequest.onBeforeRequest?.addListener(details=>{
   youtubeSabrSeed.set(details.requestId,{tabId:details.tabId,url,requestBody:bytesBase64(bytes)});
   if(youtubeSabrSeed.size>100)youtubeSabrSeed.delete(youtubeSabrSeed.keys().next().value);
 },{urls:['https://*.googlevideo.com/videoplayback*','https://googlevideo.com/videoplayback*']},['requestBody']);
+
 function rememberRequest(details) {
   if(details.tabId<0 || !httpUrl(details.url))return;
-  let tab=requestContext.get(details.tabId);
-  if(!tab){tab=new Map();requestContext.set(details.tabId,tab);if(requestContext.size>50)requestContext.delete(requestContext.keys().next().value);}
   const headers={};
   for(const h of details.requestHeaders||[]) {
     const name=h.name.toLowerCase();
     if(['cookie','authorization','user-agent','referer','origin'].includes(name)&&typeof h.value==='string'&&h.value.length<=16384&&!/[\r\n]/.test(h.value))headers[name]=h.value;
   }
-  tab.set(details.url,headers);if(tab.size>100)tab.delete(tab.keys().next().value);
+  saveStoredHeaders(details.tabId, details.url, headers);
 }
 api.webRequest.onBeforeSendHeaders?.addListener(rememberRequest,{urls:['http://*/*','https://*/*']},['requestHeaders',...(globalThis.browser?[]:['extraHeaders'])]);
 function httpUrl(value) {
   try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; }
 }
-function unsupported(url, mime = '') { return /\.mpd(?:[?#]|$)/i.test(url) || /dash\+xml/i.test(mime); }
+function isDrm(url, mime = '') {
+  return /drm|widevine|playready|fairplay/i.test(url) || /cenc/i.test(mime);
+}
+function isDash(url, mime = '') {
+  return /\.mpd(?:[?#]|$)/i.test(url) || /dash\+xml/i.test(mime);
+}
+function unsupported(url, mime = '') {
+  return isDrm(url, mime);
+}
 function isFragment(url) { return /\.(m4s|ts|aac)(?:[?#]|$)/i.test(url) || /\/init[^/]*\.mp4(?:[?#]|$)/i.test(url); }
 const hlsSeen=new Map(); let hlsActive=0;
 async function discoverHls(tabId,url) {
@@ -84,19 +150,33 @@ async function enqueue(item, tabId) {
   }
   const url = httpUrl(sabr?.serverAbrStreamingUrl||item.url);
   if (!url) throw new Error('Only direct HTTP and HTTPS links are supported.');
-  if (unsupported(url, item.mime) || item.unsupported) throw new Error(item.reason || 'DASH streams are unsupported.');
-  const requestHeaders=requestContext.get(tabId)?.get(url);
-  return nativeSend({action: 'download', url, pageUrl: item.pageUrl, quality: item.quality, youtubeFormat:item.youtubeFormat, sabr, startNow:item.startNow===true, audioUrl:httpUrl(item.audioUrl)||undefined, outputFormat:item.outputFormat, filename: item.filename, referer: httpUrl(requestHeaders?.referer || item.referer) || undefined,requestHeaders});
+  if (isDrm(url, item.mime) || item.drm) throw new Error(item.reason || 'DRM protected streams cannot be downloaded.');
+  const requestHeaders = await getStoredHeaders(tabId, url);
+  return nativeSend({
+    action: 'download',
+    url,
+    pageUrl: item.pageUrl,
+    quality: item.quality,
+    mediaKind: item.mediaKind,
+    youtubeFormat: item.youtubeFormat,
+    sabr,
+    startNow: item.startNow===true,
+    audioUrl: httpUrl(item.audioUrl)||undefined,
+    outputFormat: item.outputFormat,
+    filename: item.filename,
+    referer: httpUrl(requestHeaders?.referer || item.referer) || undefined,
+    requestHeaders
+  });
 }
 function updateCache(change) {
   const next = serial.then(async () => {
-    const data = await api.storage.session.get(CACHE_KEY);
+    const data = await sessionStore.get(CACHE_KEY);
     const map = data[CACHE_KEY] || {};
     await change(map);
     // Bound total tracked tabs as well as each tab's results.
     const keys = Object.keys(map);
     keys.slice(0, Math.max(0, keys.length - 50)).forEach(key => delete map[key]);
-    await api.storage.session.set({[CACHE_KEY]: map});
+    await sessionStore.set({[CACHE_KEY]: map});
   });
   serial = next.catch(() => {});
   return next;
@@ -108,7 +188,23 @@ async function remember(tabId, items) {
     for (const item of items.slice(0, 100)) {
       const url = httpUrl(item.url);
       if (!url || isFragment(url)) continue;
-      const value={url, mime: String(item.mime || '').slice(0, 100), title: String(item.title || '').slice(0, 180), quality:String(item.quality||'').slice(0,40),bitrate:Number(item.bitrate)||0,format:String(item.format||'').slice(0,20),separateAudio:!!item.separateAudio,reason:String(item.reason||'').slice(0,180),unsupported: unsupported(url, item.mime)||!!item.unsupported};
+      const is_dash = isDash(url, item.mime);
+      const is_hls = item.format === 'HLS' || /\.m3u8(?:[?#]|$)/i.test(url) || /mpegurl/i.test(item.mime || '');
+      const drm = isDrm(url, item.mime) || !!item.drm;
+      const format = item.format || (is_dash ? 'DASH' : (is_hls ? 'HLS' : (item.mediaKind === 'blob' ? 'Web Video' : '')));
+      const value = {
+        url,
+        mime: String(item.mime || (is_dash ? 'application/dash+xml' : '')).slice(0, 100),
+        title: String(item.title || '').slice(0, 180),
+        quality: String(item.quality || '').slice(0, 40),
+        bitrate: Number(item.bitrate) || 0,
+        format: String(format).slice(0, 20),
+        mediaKind: item.mediaKind || (is_dash ? 'dash' : (is_hls ? 'hls' : 'media')),
+        pageUrl: item.pageUrl,
+        separateAudio: !!item.separateAudio,
+        reason: drm ? 'DRM protected streams are unsupported.' : String(item.reason || '').slice(0, 180),
+        unsupported: drm || !!item.unsupported
+      };
       value.audioUrl=httpUrl(item.audioUrl)||undefined;
       value.codecs=String(item.codecs||'').slice(0,200);
       value.masterUrl=httpUrl(item.masterUrl)||undefined;
@@ -118,6 +214,21 @@ async function remember(tabId, items) {
     }
     map[tabId] = prior.slice(-100);
   });
+}
+async function cleanTabState(tabId) {
+  youtubePlayers.delete(tabId);
+  youtubeObserved.delete(tabId);
+  clearSabrCapture(tabId);
+  requestContextMem.delete(tabId);
+  hlsSeen.delete(tabId);
+  try {
+    const data = await sessionStore.get([CACHE_KEY, REQ_CTX_KEY]);
+    const mediaMap = data[CACHE_KEY] || {};
+    delete mediaMap[tabId];
+    const reqMap = data[REQ_CTX_KEY] || {};
+    delete reqMap[tabId];
+    await sessionStore.set({ [CACHE_KEY]: mediaMap, [REQ_CTX_KEY]: reqMap });
+  } catch {}
 }
 api.webRequest.onHeadersReceived.addListener(details => {
   const mime = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value || '';
@@ -135,13 +246,13 @@ api.webRequest.onHeadersReceived.addListener(details => {
     youtubeObserved.set(details.tabId,urls.slice(0,100));
     if(youtubeObserved.size>50)youtubeObserved.delete(youtubeObserved.keys().next().value);
   }
-  if (details.type === 'media' || /^(video|audio)\//i.test(mime) || unsupported(details.url, mime)) {
+  if (details.type === 'media' || /^(video|audio)\//i.test(mime) || isDash(details.url, mime) || unsupported(details.url, mime)) {
     remember(details.tabId, [{url: details.url, mime}]).catch(() => {});
   }
   if(/\.m3u8(?:[?#]|$)/i.test(details.url)||/mpegurl/i.test(mime))discoverHls(details.tabId,details.url);
 }, {urls: ['http://*/*', 'https://*/*']}, ['responseHeaders']);
-api.tabs.onRemoved.addListener(tabId => {youtubePlayers.delete(tabId);youtubeObserved.delete(tabId);clearSabrCapture(tabId);requestContext.delete(tabId);hlsSeen.delete(tabId);updateCache(map => { delete map[tabId]; }).catch(() => {});});
-api.tabs.onUpdated.addListener((tabId, change) => { if (change.status === 'loading') {youtubePlayers.delete(tabId);youtubeObserved.delete(tabId);clearSabrCapture(tabId);requestContext.delete(tabId);hlsSeen.delete(tabId);updateCache(map => { delete map[tabId]; }).catch(() => {});} });
+api.tabs.onRemoved.addListener(tabId => { cleanTabState(tabId).catch(() => {}); });
+api.tabs.onUpdated.addListener((tabId, change) => { if (change.status === 'loading') cleanTabState(tabId).catch(() => {}); });
 api.runtime.onInstalled.addListener(async () => {
   try {
     await api.contextMenus.removeAll();
@@ -186,7 +297,7 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
     }
     if (message.action === 'list' && !sender.tab) {
       await serial;
-      const data = await api.storage.session.get(CACHE_KEY);
+      const data = await sessionStore.get(CACHE_KEY);
       return {ok: true, items: data[CACHE_KEY]?.[message.tabId] || []};
     }
     if (message.action === 'listForFrame' && sender.tab) {
@@ -201,8 +312,8 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
         return {ok:true,items,notice:!items.length&&player?.videoId===id&&player.sabr?'This video uses YouTube SABR streaming, which this version cannot download yet. No download has been started.':undefined};
       }
       await serial;
-      const data = await api.storage.session.get(CACHE_KEY);
-      return {ok:true, items:(data[CACHE_KEY]?.[sender.tab.id] || []).filter(item => item.unsupported || item.format==='HLS' || /^(video|audio)\//i.test(item.mime) || /\.(m3u8|mp4|webm|mov|m4v|mp3|m4a|ogg|wav)(?:[?#]|$)/i.test(item.url))};
+      const data = await sessionStore.get(CACHE_KEY);
+      return {ok:true, items:(data[CACHE_KEY]?.[sender.tab.id] || []).filter(item => item.unsupported || item.format==='HLS' || item.format==='DASH' || item.format==='Web Video' || item.mediaKind==='blob' || /^(video|audio)\//i.test(item.mime) || /\.(m3u8|mpd|mp4|webm|mov|m4v|mp3|m4a|ogg|wav)(?:[?#]|$)/i.test(item.url))};
     }
     throw new Error('Unsupported extension request.');
   };
