@@ -40,45 +40,43 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         conn.execute("PRAGMA temp_store = MEMORY;")
     except Exception:
         pass
-    with conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS downloads (
-                id TEXT PRIMARY KEY,
-                url TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                save_path TEXT NOT NULL,
-                total_bytes INTEGER DEFAULT 0,
-                downloaded_bytes INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'queued',
-                category TEXT DEFAULT 'General',
-                connections INTEGER DEFAULT 8,
-                supports_range INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at TIMESTAMP,
-                error_message TEXT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS transfer_journals (
-                task_id TEXT PRIMARY KEY,
-                staging_path TEXT NOT NULL,
-                journal_json TEXT NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(downloads)")
-        cols = [r[1] for r in cursor.fetchall()]
-        if "kind" not in cols:
-            conn.execute("ALTER TABLE downloads ADD COLUMN kind TEXT DEFAULT 'http'")
-        if "headers_json" not in cols:
-            conn.execute("ALTER TABLE downloads ADD COLUMN headers_json TEXT")
+
+    # Apply database migrations
+    try:
+        from .db_migrations import run_migrations
+        run_migrations(conn, db_path)
+    except Exception as e:
+        # Fallback to basic schema if migration runner hits an unexpected environment error
+        with conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS downloads (
+                    id TEXT PRIMARY KEY,
+                    url TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    save_path TEXT NOT NULL,
+                    total_bytes INTEGER DEFAULT 0,
+                    downloaded_bytes INTEGER DEFAULT 0,
+                    status TEXT DEFAULT 'queued',
+                    category TEXT DEFAULT 'General',
+                    connections INTEGER DEFAULT 8,
+                    supports_range INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    error_message TEXT,
+                    kind TEXT DEFAULT 'direct',
+                    headers_json TEXT
+                )
+            """)
+            conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS transfer_journals (
+                    task_id TEXT PRIMARY KEY,
+                    staging_path TEXT NOT NULL,
+                    journal_json TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
     return conn
 
 class DownloadDB:
