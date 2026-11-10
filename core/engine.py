@@ -169,6 +169,19 @@ class DownloadEngine:
                 on_complete=self._on_task_complete,
                 on_error=self._on_task_error
             )
+        # Automatic FTP / FTPS routing
+        elif url.lower().startswith(("ftp://", "ftps://")):
+            from core.ftp_downloader import FTPDownloadTask
+            task = FTPDownloadTask(
+                task_id=task_id,
+                url=url,
+                save_path=save_path,
+                connections=1,
+                headers=headers,
+                on_progress=self._on_task_progress,
+                on_complete=self._on_task_complete,
+                on_error=self._on_task_error
+            )
         else:
             task = DownloadTask(
                 task_id=task_id,
@@ -184,7 +197,8 @@ class DownloadEngine:
         task.prepare()
 
         import json
-        kind = "youtube" if is_yt else ("hls" if (".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8"))) else "http")
+        is_ftp = url.lower().startswith(("ftp://", "ftps://"))
+        kind = "youtube" if is_yt else ("hls" if (".m3u8" in url.lower() or (filename and filename.lower().endswith(".m3u8"))) else ("ftp" if is_ftp else "http"))
 
         # Save to database
         self.db.add_download({
@@ -252,6 +266,18 @@ class DownloadEngine:
                     url=row["url"],
                     save_path=row["save_path"],
                     connections=row.get("connections", 8),
+                    headers=hdrs,
+                    on_progress=self._on_task_progress,
+                    on_complete=self._on_task_complete,
+                    on_error=self._on_task_error
+                )
+            elif kind == "ftp" or row["url"].lower().startswith(("ftp://", "ftps://")):
+                from core.ftp_downloader import FTPDownloadTask
+                task = FTPDownloadTask(
+                    task_id=task_id,
+                    url=row["url"],
+                    save_path=row["save_path"],
+                    connections=1,
                     headers=hdrs,
                     on_progress=self._on_task_progress,
                     on_complete=self._on_task_complete,

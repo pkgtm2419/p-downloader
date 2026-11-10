@@ -54,6 +54,10 @@ class Segment:
         return seg
 
 def probe_url(url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    if url.lower().startswith(("ftp://", "ftps://")):
+        from core.ftp_downloader import probe_ftp
+        return probe_ftp(url, timeout=timeout)
+
     # Check if YouTube URL and probe with yt-dlp
     try:
         from core.youtube_downloader import is_youtube_url, probe_youtube
