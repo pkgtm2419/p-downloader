@@ -250,7 +250,11 @@ jobs:
       - name: Create Release Body Notes
         shell: bash
         run: |
-          cat << 'EOF' > release_notes.md
+          if [ -f RELEASE_NOTES.md ]; then
+            echo "Using RELEASE_NOTES.md from repository"
+            cp RELEASE_NOTES.md release_notes.md
+          else
+            cat << 'EOF' > release_notes.md
           ## 📥 Quick Download Links
 
           | Package | Platform | Direct Download |
@@ -263,11 +267,17 @@ jobs:
 
           ---
           ### ✨ Key Capabilities in This Release:
-          - **Full Browser WebExtension**: In-page video sniffer bar, quality selector dropdown, HLS/M3U8 master playlist parsing, YouTube stream capture, and popup media link collector.
-          - **Smart Windows Setup**: Automatically detects existing installations with upgrade or clean reinstall options.
-          - **Download Dialog Fixes**: Reliable Pause, Stop, and Delete controls with zero auto-restart loop bugs.
-          - **Multi-Connection Acceleration**: Slices downloads into up to 32 concurrent HTTP streams with network adapter bonding.
+          - **Universal Video & Audio Extraction**: Deep yt-dlp & ffmpeg integration for 1,000+ sites with browser cookie/referer sync.
+          - **Modular HLS & DASH Streaming Engine**: CMAF fMP4, AES-128 key rotation, and lossless audio/video muxing.
+          - **Resilient FTP & FTPS Engine**: TLS encrypted PROT P transfers, resume, and sizing.
+          - **BitTorrent & RSS Swarm**: Magnet & torrent engine with interactive piece visualizer.
+          - **Cloud Debrid & Unpacker**: Real-Debrid, AllDebrid, and Premiumize support.
+          - **Web Remote & Headless**: Mobile web dashboard, Docker container, and headless daemon.
+          - **Model Context Protocol (MCP)**: Native AI assistant agent integration.
+          - **Hardened Security**: VPN fail-closed kill switch, Encrypted DoH, and SSRF IP pinning.
+          - **Low-RAM Core**: Under 30 MB memory consumption with AOT compilation.
           EOF
+          fi
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

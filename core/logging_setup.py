@@ -94,7 +94,7 @@ def setup_logging(log_dir: Optional[str] = None, level: int = logging.INFO, regi
     """
     Initializes rotating file handler (5 x 2 MB) and attaches RedactionFilter.
     """
-    global _initialized, _global_filter
+    global _initialized
     ld = Path(log_dir) if log_dir else get_log_dir()
     ld.mkdir(parents=True, exist_ok=True)
     log_file = ld / "pdownloader.log"

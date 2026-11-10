@@ -129,7 +129,7 @@ def main():
                 try:
                     from core import __version__ as app_version
                 except Exception:
-                    app_version = "1.0.6"
+                    app_version = "1.1.0"
                 send_message({
                     "requestId": req_id,
                     "ok": True,
