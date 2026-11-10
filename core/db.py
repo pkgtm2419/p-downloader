@@ -35,6 +35,11 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     except Exception:
         conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA cache_size = -2000;")
+        conn.execute("PRAGMA temp_store = MEMORY;")
+    except Exception:
+        pass
     with conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS downloads (

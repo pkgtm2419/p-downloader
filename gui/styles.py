@@ -473,9 +473,237 @@ QScrollBar::add-line, QScrollBar::sub-line {
 
 MAIN_STYLESHEET = LIGHT_THEME_STYLESHEET
 
-def get_theme_stylesheet(name: str = "light") -> str:
+THEME_PALETTES = {
+    "fluent_light": {
+        "bg": "#f4f7fb", "surface": "#ffffff", "border": "#e2e8f0",
+        "text": "#172033", "text_muted": "#64748b",
+        "primary": "#2563eb", "primary_hover": "#1d4ed8",
+        "row_alt": "#f8fafc", "select_bg": "#eff6ff", "select_fg": "#2563eb"
+    },
+    "fluent_dark": {
+        "bg": "#121418", "surface": "#1c1f26", "border": "#2a2e38",
+        "text": "#e1e4e8", "text_muted": "#8a94a6",
+        "primary": "#0078d4", "primary_hover": "#1084d8",
+        "row_alt": "#161920", "select_bg": "#263040", "select_fg": "#38a4ff"
+    },
+    "classic_98": {
+        "bg": "#c0c0c0", "surface": "#ffffff", "border": "#808080",
+        "text": "#000000", "text_muted": "#404040",
+        "primary": "#000080", "primary_hover": "#1010a0",
+        "row_alt": "#efefef", "select_bg": "#000080", "select_fg": "#ffffff"
+    },
+    "aero_neon": {
+        "bg": "#0a0f1d", "surface": "#121a2f", "border": "#1f2d4f",
+        "text": "#d9e6ff", "text_muted": "#758fb8",
+        "primary": "#00f0ff", "primary_hover": "#33f3ff",
+        "row_alt": "#0d1426", "select_bg": "#172747", "select_fg": "#00f0ff"
+    },
+    "dracula": {
+        "bg": "#282a36", "surface": "#44475a", "border": "#6272a4",
+        "text": "#f8f8f2", "text_muted": "#99a2c2",
+        "primary": "#bd93f9", "primary_hover": "#cfaafc",
+        "row_alt": "#343746", "select_bg": "#44475a", "select_fg": "#ff79c6"
+    },
+    "nord": {
+        "bg": "#2e3440", "surface": "#3b4252", "border": "#4c566a",
+        "text": "#eceff4", "text_muted": "#8892b0",
+        "primary": "#88c0d0", "primary_hover": "#81a1c1",
+        "row_alt": "#353c4a", "select_bg": "#434c5e", "select_fg": "#88c0d0"
+    },
+    "monokai": {
+        "bg": "#272822", "surface": "#3e3d32", "border": "#49483e",
+        "text": "#f8f8f2", "text_muted": "#8f908a",
+        "primary": "#a6e22e", "primary_hover": "#b7eb46",
+        "row_alt": "#32332a", "select_bg": "#49483e", "select_fg": "#a6e22e"
+    },
+    "cyberpunk": {
+        "bg": "#181926", "surface": "#24273a", "border": "#ff0055",
+        "text": "#cad3f5", "text_muted": "#8087a2",
+        "primary": "#fcee0a", "primary_hover": "#fffa65",
+        "row_alt": "#1e2030", "select_bg": "#363a4f", "select_fg": "#fcee0a"
+    },
+    "high_contrast": {
+        "bg": "#000000", "surface": "#121212", "border": "#ffffff",
+        "text": "#ffffff", "text_muted": "#d0d0d0",
+        "primary": "#ffff00", "primary_hover": "#ffff55",
+        "row_alt": "#1a1a1a", "select_bg": "#ffff00", "select_fg": "#000000"
+    }
+}
+
+# Aliases
+THEME_PALETTES["light"] = THEME_PALETTES["fluent_light"]
+THEME_PALETTES["dark"] = THEME_PALETTES["fluent_dark"]
+
+
+def _build_theme_stylesheet(p: dict) -> str:
+    return f"""
+QMainWindow, QDialog {{
+    background-color: {p['bg']};
+    color: {p['text']};
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", "Roboto", sans-serif;
+    font-size: 10pt;
+}}
+
+QWidget {{
+    color: {p['text']};
+    background-color: transparent;
+    selection-background-color: {p['select_bg']};
+    selection-color: {p['select_fg']};
+}}
+
+QFrame#card, QWidget#card {{
+    background-color: {p['surface']};
+    border: 1px solid {p['border']};
+    border-radius: 8px;
+}}
+
+QMenuBar {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border-bottom: 1px solid {p['border']};
+    padding: 3px 6px;
+    font-size: 9.5pt;
+}}
+
+QMenuBar::item:selected, QMenuBar::item:pressed {{
+    background-color: {p['select_bg']};
+    color: {p['primary']};
+}}
+
+QMenu {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+    border-radius: 8px;
+    padding: 6px;
+}}
+
+QMenu::item:selected {{
+    background-color: {p['select_bg']};
+    color: {p['primary']};
+}}
+
+QToolBar {{
+    background-color: {p['surface']};
+    border-bottom: 1px solid {p['border']};
+    padding: 6px 12px;
+    spacing: 6px;
+}}
+
+QToolButton {{
+    background-color: transparent;
+    color: {p['text']};
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-weight: 500;
+}}
+
+QToolButton:hover {{
+    background-color: {p['select_bg']};
+    border: 1px solid {p['border']};
+    color: {p['primary']};
+}}
+
+QLineEdit, QTextEdit, QPlainTextEdit {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+    border-radius: 6px;
+    padding: 6px 10px;
+}}
+
+QLineEdit:focus {{
+    border: 1.5px solid {p['primary']};
+}}
+
+QPushButton {{
+    background-color: {p['primary']};
+    color: #ffffff;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-weight: 600;
+}}
+
+QPushButton:hover {{
+    background-color: {p['primary_hover']};
+}}
+
+QPushButton#secondaryBtn {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+}}
+
+QPushButton#secondaryBtn:hover {{
+    background-color: {p['select_bg']};
+}}
+
+QTableView, QTableWidget {{
+    background-color: {p['surface']};
+    alternate-background-color: {p['row_alt']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+    border-radius: 6px;
+    gridline-color: {p['border']};
+}}
+
+QHeaderView::section {{
+    background-color: {p['surface']};
+    color: {p['text_muted']};
+    border: none;
+    border-bottom: 1px solid {p['border']};
+    padding: 6px 8px;
+    font-weight: 600;
+}}
+
+QProgressBar {{
+    background-color: {p['border']};
+    color: {p['text']};
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 10px;
+}}
+
+QProgressBar::chunk {{
+    background-color: {p['primary']};
+    border-radius: 4px;
+}}
+
+QScrollBar:vertical, QScrollBar:horizontal {{
+    background-color: {p['bg']};
+    border: none;
+    margin: 0;
+}}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+    background-color: {p['border']};
+    border-radius: 4px;
+}}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
+    background-color: {p['primary']};
+}}
+"""
+
+
+def list_themes() -> list:
+    """Returns list of all available theme names."""
+    return [
+        "fluent_light", "fluent_dark", "classic_98", "aero_neon",
+        "dracula", "nord", "monokai", "cyberpunk", "high_contrast"
+    ]
+
+
+def get_theme_stylesheet(name: str = "fluent_light") -> str:
     """Returns the CSS stylesheet for the requested theme."""
-    return LIGHT_THEME_STYLESHEET
+    clean = name.lower().strip()
+    if clean in ("light", "fluent_light") and "LIGHT_THEME_STYLESHEET" in globals():
+        return LIGHT_THEME_STYLESHEET
+    palette = THEME_PALETTES.get(clean, THEME_PALETTES["fluent_light"])
+    return _build_theme_stylesheet(palette)
 
 def format_bytes(num_bytes: int) -> str:
     if num_bytes <= 0:

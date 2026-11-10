@@ -98,6 +98,8 @@ class MainWindow(QMainWindow):
         btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         btn.setIconSize(QSize(18, 18))
         btn.setFixedHeight(34)
+        btn.setAccessibleName(text)
+        btn.setAccessibleDescription(tooltip)
         if object_name:
             btn.setObjectName(object_name)
         toolbar.addWidget(btn)
@@ -478,6 +480,8 @@ class MainWindow(QMainWindow):
 
         # ================= Right Workspace: Stack (Table or Empty State) =================
         self.table = QTableWidget()
+        self.table.setAccessibleName("Downloads List Table")
+        self.table.setAccessibleDescription("List of active and completed downloads with progress, speed, size, and status")
         self.table.setColumnCount(8)
         self.table.setHorizontalHeaderLabels([
             "File Name", "Size", "Status", "Progress", "Speed", "Time Left", "Category", "Actions"
